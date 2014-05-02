@@ -1,0 +1,31 @@
+module TypedLambda.main
+
+imports
+  TypedLambda-Colorer
+  TypedLambda-Completions
+  TypedLambda-Folding
+  TypedLambda-Menus
+  TypedLambda-Refactorings
+  TypedLambda-References
+  TypedLambda-Syntax
+  TypedLambda-Views
+
+language General properties
+  
+  name:          TypedLambda
+  id:            TypedLambda
+  extends:       Root
+  
+  description:   "Spoofax-generated editor for the TypedLambda language"
+  url:           http://strategoxt.org
+  
+  extensions:    typ
+  table:         include/TypedLambda.tbl
+  start symbols: Start
+  
+  provider:      include/typedlambda.ctree
+  provider:      include/typedlambda-java.jar
+  
+  observer:      editor-analyze (multifile)
+  
+  on save:       editor-save

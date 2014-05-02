@@ -1,0 +1,10 @@
+module generate
+
+imports
+	
+	include/TypedLambda
+	semantic/normalization
+	semantic/typecheck
+
+rules 
+

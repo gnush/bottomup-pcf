@@ -1,0 +1,28 @@
+module pp
+
+imports
+
+	libstratego-gpp
+	lib/runtime/tmpl/pp
+	Common.pp.generated
+	TypedLambda.pp.generated
+
+rules
+	
+  pp-TypedLambda-string =
+    prettyprint-Start
+    ; !V([], <id>)
+    ; box2text-string(|120)
+      
+  pp-partial-TypedLambda-string =
+    prettyprint-example
+    ; !V([], <id>)
+    ; box2text-string(|120)
+      
+  pp-debug :
+    ast -> result
+    with
+       result := <pp-TypedLambda-string> ast
+    <+ <bottomup(try(not(is-string); not(is-list); not(pp-TypedLambda-string); debug(!"cannot pp ")))> ast
+    ;  result := ""
+

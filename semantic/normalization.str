@@ -1,0 +1,33 @@
+module normalization
+
+imports
+	
+	include/TypedLambda
+	semantic/substitution
+
+rules 
+	remove-bracket:
+		Bracket(e) -> e
+	unbracket:
+		e -> <topdown(try(remove-bracket))> e
+		
+	reduce:
+		Not(True()) -> False()
+	reduce:
+		Not(False()) -> True()
+	reduce:
+		And(lhs, True()) -> lhs
+	reduce:
+		And(_, False()) -> False()
+	reduce:
+		App(Abs(x, t, e), e') -> <subst> (x, e, e')
+
+	normalize:
+		Module(x, e*) -> Module(x, e'*)
+		with
+			e'* := <map(normalize)> e*
+	normalize:
+		e -> e1
+		with
+			e' := <unbracket> e;
+			e1 := <innermost(reduce)> e'

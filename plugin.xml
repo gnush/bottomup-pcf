@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?eclipse version="3.0"?>
+<plugin>
+   <extension
+         point="org.eclipse.imp.runtime.languageDescription">
+      <language
+            extensions="typ"
+            description="TypedLambda"
+            language="TypedLambda"
+            derivedFrom="DynamicRoot"
+            validator="TypedLambda.TypedLambdaValidator"
+            validatorClass="TypedLambda.TypedLambdaValidator"
+      ></language>
+   </extension>
+   <extension
+         id="TypedLambda.parser"
+         name="TypedLambda Parser"
+         point="org.eclipse.imp.runtime.parser">
+      <parser
+            class="TypedLambda.TypedLambdaParseController"
+            language="TypedLambda">
+      </parser>
+   </extension>    
+</plugin>

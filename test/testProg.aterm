@@ -1,0 +1,11 @@
+Abs(
+  "x"
+, Function(Bool(), Bool())
+, Bracket(
+    Abs(
+      "y"
+    , Bool()
+    , Bracket(App(Var("x"), Var("y")))
+    )
+  )
+)

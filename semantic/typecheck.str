@@ -1,0 +1,39 @@
+module typecheck
+
+imports
+	include/TypedLambda
+
+signature constructors
+	CEq : Expr * Type -> Constraint
+	
+rules
+	typecheck: e -> <typecheck1> (e, [])
+	
+	typecheck1: (Bracket(e), c)     -> <typecheck1> (e, c)
+	typecheck1: (True(), c)         -> (c, Bool())
+	typecheck1: (False(), c)        -> (c, Bool()) 
+	typecheck1: (Not(e), c)         -> <typecheck1> (e, c)
+	typecheck1: (And(e1, e2), c)    -> (c', Bool())
+		with (c1, Bool()) := <typecheck1> (e1, c);
+			 (c2, Bool()) := <typecheck1> (e2, c);
+			 c'           := <concat> [c1, c2]
+	typecheck1: (Abs(x, t1, e1), c) -> (c', Function(t1, t'))
+		with (c1, t') := <typecheck1> (e1, c);
+		     //c'       := <concat> [c, c1, [CEq(x, t1), CEq(Abs(x, t1, e1), Function(t1, t'))]]
+		     c'       := <concat> [c, c1, [CEq(x, t1)]]
+	typecheck1: (App(e1, e2), c)    -> (c', t2) // this must be of return type of t
+		with (c1, t)  := <typecheck1> (e1, c); // t is function type
+			 (c2, t1) := <typecheck1> (e2, c); // t1 is argument type of t
+			 c'       := <concat> [c, c1, c2, [CEq(e1, t), CEq(e2, t1)]];
+			 Function(t1, t2) := t 
+	typecheck1: (Var(x), c)         -> (c, Bool()) // what is the type?
+		
+		
+		
+	// typecheck: (App(e1, e2), t, c)    -> c // e1 must be of type t1 -> t. how do i get t1?
+	// 	with c1 := CEq(e2, )
+	// 		 c1 := CEq(e1, Function(t, t))
+	// typecheck: (Var(x), t, c)         -> <concat> [c, [CEq(x, t)]]
+			 
+			
+			

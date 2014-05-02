@@ -1,0 +1,38 @@
+module TypedLambda
+
+imports
+	
+	Common
+
+context-free start-symbols
+  
+  Start
+
+templates
+  
+  Start.Module = [module [ID] [Expr*; separator="\n,\n"]]
+  Expr.Var     = [_[ID]]
+  Expr.App     = [[Expr] [Expr]] {left}
+  Expr.Abs     = [\\[ID] : [Type]. [Expr]]
+  Expr.True    = [True]
+  Expr.False   = [False]
+  Expr.Not     = [~[Expr]]
+  Expr.And     = [[Expr] and [Expr]] {left}
+  Expr.Bracket = [([Expr])]
+  
+  Type.Bool     = [Bool]
+  Type.Function = [[Type] -> [Type]]
+  
+context-free priorities
+
+  {
+  	Expr.Var
+  } > {
+  	Expr.Not
+  } > {
+  	Expr.And
+  } > {
+  	Expr.Abs
+  } > {
+  	Expr.App
+  }
