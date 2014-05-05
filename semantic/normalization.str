@@ -4,13 +4,9 @@ imports
 	
 	include/TypedLambda
 	semantic/substitution
+	trans/util
 
-rules 
-	remove-bracket:
-		Bracket(e) -> e
-	unbracket:
-		e -> <topdown(try(remove-bracket))> e
-		
+rules	
 	reduce:
 		Not(True()) -> False()
 	reduce:

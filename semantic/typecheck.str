@@ -2,14 +2,27 @@ module typecheck
 
 imports
 	include/TypedLambda
+	trans/util
 
 signature constructors
-	CEq : Expr * Type -> Constraint
+	CEq : Type * Type -> Constraint
+	CBoundLater : STRING -> Constraint
+	CBinding : STRING * Type -> Constraint
+	
+	TUnbound : Type
+	TVar     : STRING -> Type
 	
 rules
-	typecheck: e -> <typecheck1> (e, [])
+	typecheck: e -> e'
+	with
+		e1 := <unbracket> e;
+		e' := <typecheck1> (e1, [])
 	
-	typecheck1: (Bracket(e), c)     -> <typecheck1> (e, c)
+	typeinfer: e -> (t, c')
+		with e'     := <unbracket> e;
+			 (t, c) := <infer> ([], e, []);
+			 c'     := <nub> c
+	
 	typecheck1: (True(), c)         -> (c, Bool())
 	typecheck1: (False(), c)        -> (c, Bool()) 
 	typecheck1: (Not(e), c)         -> <typecheck1> (e, c)
@@ -25,15 +38,35 @@ rules
 		with (c1, t)  := <typecheck1> (e1, c); // t is function type
 			 (c2, t1) := <typecheck1> (e2, c); // t1 is argument type of t
 			 c'       := <concat> [c, c1, c2, [CEq(e1, t), CEq(e2, t1)]];
-			 Function(t1, t2) := t 
+			 Function(t1, t2) := t
 	typecheck1: (Var(x), c)         -> (c, Bool()) // what is the type?
-		
-		
 		
 	// typecheck: (App(e1, e2), t, c)    -> c // e1 must be of type t1 -> t. how do i get t1?
 	// 	with c1 := CEq(e2, )
 	// 		 c1 := CEq(e1, Function(t, t))
 	// typecheck: (Var(x), t, c)         -> <concat> [c, [CEq(x, t)]]
-			 
-			
-			
+
+	// (env, e, c) -> c
+	infer: (env, True(), c)      -> (Bool(), c)
+	infer: (env, False(), c)     -> (Bool(), c)
+	infer: (env, Not(e), c)      -> (Bool(), c'')
+		with (t', c') := <infer> (env, e, c);
+			 c''      := <concat> [c, c', [CEq(Bool(), t')]]
+	infer: (env, And(e1, e2), c) -> (Bool(), c')
+		with (t1, c1) := <infer> (env, e1, c);
+			 (t2, c2) := <infer> (env, e2, c);
+			 c'       := <concat> [c, c1, c2, [CEq(Bool(), t1), CEq(Bool(), t2)]]
+	infer: (env, Var(x), c)      -> (t, c)
+		with t := <if <elem> (x, env)
+					then <fetch-elem(?x)> env 
+					else !CBoundLater(x)
+						end>
+	infer: (env, Abs(x, t, e), c) -> (Function(t, t'), c'')
+		with env'     := <concat> [env, [(x, t)]];
+		     (t', c') := <infer> (env', e, c);
+		     c''      := <concat> [c, c', [CBinding(x, t)]]
+	infer: (env, App(e1, e2), c)  -> (t', c')
+		with (t1, c1) := <infer> (env, e1, c);
+			 (t2, c2) := <infer> (env, e2, c);
+			 t'       := TVar(<newname> "newType");
+			 c'       := <concat> [c, c1, c2, [CEq(t1, Function(t2, t'))]]

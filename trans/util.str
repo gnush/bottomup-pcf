@@ -1,0 +1,10 @@
+module util
+
+imports
+	include/TypedLambda
+	
+rules
+	remove-bracket:
+		Bracket(e) -> e
+	unbracket:
+		e -> <topdown(try(remove-bracket))> e
