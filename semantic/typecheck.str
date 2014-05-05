@@ -6,10 +6,10 @@ imports
 
 signature constructors
 	CEq : Type * Type -> Constraint
-	CBoundLater : STRING -> Constraint
+	//CBoundLater : STRING -> Constraint
 	CBinding : STRING * Type -> Constraint
 	
-	TUnbound : Type
+	TUnbound : STRING -> Type
 	TVar     : STRING -> Type
 	
 rules
@@ -20,7 +20,7 @@ rules
 	
 	typeinfer: e -> (t, c')
 		with e'     := <unbracket> e;
-			 (t, c) := <infer> ([], e, []);
+			 (t, c) := <infer> (e, []);
 			 c'     := <nub> c
 	
 	// typecheck1: (True(), c)         -> (c, Bool())
@@ -46,27 +46,45 @@ rules
 	// 		 c1 := CEq(e1, Function(t, t))
 	// typecheck: (Var(x), t, c)         -> <concat> [c, [CEq(x, t)]]
 
-	// (env, e, c) -> c
-	infer: (env, True(), c)      -> (Bool(), c)
-	infer: (env, False(), c)     -> (Bool(), c)
-	infer: (env, Not(e), c)      -> (Bool(), c'')
-		with (t', c') := <infer> (env, e, c);
+	// (env, e, c) -> (t, c)
+	// infer: (env, True(), c)      -> (Bool(), c)
+	// infer: (env, False(), c)     -> (Bool(), c)
+	// infer: (env, Not(e), c)      -> (Bool(), c'')
+	// 	with (t', c') := <infer> (env, e, c);
+	// 		 c''      := <concat> [c, c', [CEq(Bool(), t')]]
+	// infer: (env, And(e1, e2), c) -> (Bool(), c')
+	// 	with (t1, c1) := <infer> (env, e1, c);
+	// 		 (t2, c2) := <infer> (env, e2, c);
+	// 		 c'       := <concat> [c, c1, c2, [CEq(Bool(), t1), CEq(Bool(), t2)]]
+	// infer: (env, Var(x), c)      -> (t, c)
+	// 	with t := <if <elem> (x, env)
+	// 				then <fetch-elem(?x)> env 
+	// 				else !CBoundLater(x)
+	// 					end>
+	// infer: (env, Abs(x, t, e), c) -> (Function(t, t'), c'')
+	// 	with env'     := <concat> [env, [(x, t)]];
+	// 	     (t', c') := <infer> (env', e, c);
+	// 	     c''      := <concat> [c, c', [CBinding(x, t)]]
+	// infer: (env, App(e1, e2), c)  -> (t', c')
+	// 	with (t1, c1) := <infer> (env, e1, c);
+	// 		 (t2, c2) := <infer> (env, e2, c);
+	// 		 t'       := TVar(<newname> "newType");
+	// 		 c'       := <concat> [c, c1, c2, [CEq(t1, Function(t2, t'))]]
+	infer: (True(), c)      -> (Bool(), c)
+	infer: (False(), c)     -> (Bool(), c)
+	infer: (Not(e), c)      -> (Bool(), c'')
+		with (t', c') := <infer> (e, c);
 			 c''      := <concat> [c, c', [CEq(Bool(), t')]]
-	infer: (env, And(e1, e2), c) -> (Bool(), c')
-		with (t1, c1) := <infer> (env, e1, c);
-			 (t2, c2) := <infer> (env, e2, c);
+	infer: (And(e1, e2), c) -> (Bool(), c')
+		with (t1, c1) := <infer> (e1, c);
+			 (t2, c2) := <infer> (e2, c);
 			 c'       := <concat> [c, c1, c2, [CEq(Bool(), t1), CEq(Bool(), t2)]]
-	infer: (env, Var(x), c)      -> (t, c)
-		with t := <if <elem> (x, env)
-					then <fetch-elem(?x)> env 
-					else !CBoundLater(x)
-						end>
-	infer: (env, Abs(x, t, e), c) -> (Function(t, t'), c'')
-		with env'     := <concat> [env, [(x, t)]];
-		     (t', c') := <infer> (env', e, c);
+	infer: (Var(x), c)      -> (TUnbound(x), c)
+	infer: (Abs(x, t, e), c) -> (Function(t, t'), c'')
+		with (t', c') := <infer> (e, c);
 		     c''      := <concat> [c, c', [CBinding(x, t)]]
-	infer: (env, App(e1, e2), c)  -> (t', c')
-		with (t1, c1) := <infer> (env, e1, c);
-			 (t2, c2) := <infer> (env, e2, c);
+	infer: (App(e1, e2), c)  -> (t', c')
+		with (t1, c1) := <infer> (e1, c);
+			 (t2, c2) := <infer> (e2, c);
 			 t'       := TVar(<newname> "newType");
 			 c'       := <concat> [c, c1, c2, [CEq(t1, Function(t2, t'))]]
