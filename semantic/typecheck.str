@@ -6,7 +6,6 @@ imports
 
 signature constructors
 	CEq : Type * Type -> Constraint
-	//CBoundLater : STRING -> Constraint
 	CBinding : STRING * Type -> Constraint
 	
 	TUnbound : STRING -> Type
@@ -29,9 +28,9 @@ rules
 	// 		 (t2, c2) := <infer> (env, e2, c);
 	// 		 c'       := <concat> [c, c1, c2, [CEq(Bool(), t1), CEq(Bool(), t2)]]
 	// infer: (env, Var(x), c)      -> (t, c)
-	// 	with t := <if <elem> (x, env)
-	// 				then <fetch-elem(?x)> env 
-	// 				else !CBoundLater(x)
+	// 	with (var, t) := <if <elem(?(x, _))> env
+	// 				then <fetch-elem(?(x, _))> env 
+	// 				else !(x, TUnbound(x))
 	// 					end>
 	// infer: (env, Abs(x, t, e), c) -> (Function(t, t'), c'')
 	// 	with env'     := <concat> [env, [(x, t)]];
@@ -60,3 +59,53 @@ rules
 			 (t2, c2) := <infer> (e2, c);
 			 t'       := TVar(<newname> "newType");
 			 c'       := <concat> [c, c1, c2, [CEq(t1, Function(t2, t'))]]
+
+	solve: c -> c
+
+
+	// robinson: trivial, decompose, clash, orient, occur, varibale elimination
+	//unify: (cs, mgu) -> (cs', mgu')
+	unify: ([CEq(t, t)|cs], mgu) -> <unify> (cs, mgu) //trivial
+	
+	unify: ([CEq(Function(t1, t1'), Function(t2, t2'))|cs], mgu) -> <unify> (cs', mgu) // decompose 
+		with cs' := <concat> [[CEq(t1, t2), CEq(t1', t2')], cs]
+	
+	unify: ([CEq(Bool(), Function(_, _))|cs], mgu) -> <fail> // clash
+	unify: ([CEq(Function(_, _), Bool())|cs], mgu) -> <fail>
+	
+	unify: ([CEq(t, TVar(x))|cs], mgu) -> <unify> ([CEq(TVar(x), t)|cs], mgu) // orient
+	
+	unify: ([CEq(TVar(x), t)|cs], mgu) -> <if <occurs> (x, t)
+											then fail // x occurs in t
+											else <unify> (cs', mgu') end> // variable elimination
+		with cs'  := cs; //map subst over cs
+		     mgu1 := mgu; //map subst over mgu
+		     mgu' := [(x, t)|mgu]
+	
+	unify: (cs, mgu) -> (cs, mgu) // stop?
+	
+	
+	// eliminate TUnbound with CBinding before unification
+	occurs: (var, Bool())          -> <fail>
+	occurs: (var, TVar(var))       -> <id>
+	occurs: (var, TVar(x))         -> <fail>
+	occurs: (var, Function(t, t')) -> <if <occurs> (var, t)
+										then id
+										else <occurs> (var, t') end>   
+
+	// substitute x in t with t'
+	subst: (x, Bool(), t')           -> Bool()
+	subst: (x, Function(t1, t2), t') -> Function(t1', t2')
+		with t1' := <subst> (x, t1, t');
+			 t2' := <subst> (x, t2, t')
+	subst: (x, TVar(x), t')          -> t'
+	subst: (x, TVar(y), t')          -> TVar(y)
+
+	// wrong, unifing typed and not terms
+	// occurs: (var, True())       -> <fail>
+	// occurs: (var, False())      -> <fail>
+	// occurs: (var, Not(e))       -> <occurs> (var, e)
+	// occurs: (var, And(e1, e2))  -> <if <occurs> (var, e1) then id else <occurs> (var, e2) end>
+	// occurs: (var, Var(var))     -> <id>
+	// occurs: (var, App(e1, e2))  -> <if <occurs> (var, e1) then id else <occurs> (var, e2) end>
+	// occurs: (var, Abs(x, t, e)) -> <occurs> (var, e)  // meta variable names are fresh 
