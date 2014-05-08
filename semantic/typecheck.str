@@ -13,8 +13,7 @@ signature constructors
 	
 rules
 	typeinfer: e -> (t, c')
-		with e'     := <unbracket> e;
-			 (t, c) := <infer> (e, []);
+		with (t, c) := <infer> (e, []);
 			 c'     := <nub> c
 
 	// (env, e, c) -> (t, c)
@@ -47,10 +46,10 @@ rules
 		with (t', c') := <infer> (e, c);
 			 c''      := <concat> [c, c', [CEq(Bool(), t')]]
 	infer: (And(e1, e2), c) -> (Bool(), c')
-		with (t1, c1) := <infer> (e1, c);
-			 (t2, c2) := <infer> (e2, c);
+		with (t1, c1, bindings1) := <infer> (e1, c);
+			 (t2, c2, bindings2) := <infer> (e2, c);
 			 c'       := <concat> [c, c1, c2, [CEq(Bool(), t1), CEq(Bool(), t2)]]
-	infer: (Var(x), c)      -> (TUnbound(x), c)
+	infer: (Var(x), c)      -> (ty, c, [(x,ty)]) where ty := <newname> "T"
 	infer: (Abs(x, t, e), c) -> (Function(t, t'), c'')
 		with (t', c') := <infer> (e, c);
 		     c''      := <concat> [c, c', [CBinding(x, t)]]
@@ -62,6 +61,8 @@ rules
 
 	solve: c -> c
 
+
+  // (x + 1) + ((\y. 1) x)
 
 	// robinson: trivial, decompose, clash, orient, occur, varibale elimination
 	//unify: (cs, mgu) -> (cs', mgu')
@@ -82,7 +83,7 @@ rules
 		     mgu1 := mgu; //map subst over mgu
 		     mgu' := [(x, t)|mgu]
 	
-	unify: (cs, mgu) -> (cs, mgu) // stop?
+	unify: ([], mgu) -> ([], mgu) // stop?
 	
 	
 	// eliminate TUnbound with CBinding before unification

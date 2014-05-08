@@ -8,17 +8,24 @@ context-free start-symbols
   
   Start
 
+lexical syntax
+   "False" -> ID {reject}
+   "True" -> ID {reject}
+   "and" -> ID {reject}
+   "module" -> ID {reject}
+   "Bool" -> ID {reject}
+   
 templates
   
   Start.Module = [module [ID] [Expr*; separator="\n,\n"]]
-  Expr.Var     = [_[ID]]
+  Expr.Var     = [[ID]]
   Expr.App     = [[Expr] [Expr]] {left}
   Expr.Abs     = [\\[ID] : [Type]. [Expr]]
   Expr.True    = [True]
   Expr.False   = [False]
   Expr.Not     = [~[Expr]]
   Expr.And     = [[Expr] and [Expr]] {left}
-  Expr.Bracket = [([Expr])]
+  Expr = [([Expr])] {bracket}
   
   Type.Bool     = [Bool]
   Type.Function = [[Type] -> [Type]]
@@ -32,7 +39,7 @@ context-free priorities
   } > {
   	Expr.And
   } > {
-  	Expr.Abs
-  } > {
   	Expr.App
+  } > {
+  	Expr.Abs
   }

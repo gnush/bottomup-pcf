@@ -25,7 +25,7 @@ rules
 			fresh := <newname> y;
 			e'    := <if equal(|x, y) then !Abs(y, t, e1)
 				                      else if <elem> (y, free)
-				                     		then !Abs(fresh, t, <subst> (x, <rename_var> (x, e1, fresh), e)) // y? but strange with reduction test
+				                     		then !Abs(fresh, t, <subst> (x, <subst> (y, e1, Var(fresh)), e)) // y? but strange with reduction test
 				                     		else !Abs(y, t, <subst> (x, e1, e))
 				                     		end
 				                      end>

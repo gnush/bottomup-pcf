@@ -25,5 +25,4 @@ rules
 	normalize:
 		e -> e1
 		with
-			e' := <unbracket> e;
-			e1 := <innermost(reduce)> e'
+			e1 := <innermost(reduce)> e
