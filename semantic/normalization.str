@@ -12,11 +12,17 @@ rules
 	reduce:
 		Not(False()) -> True()
 	reduce:
+		Not(e) -> Not(<reduce> e)
+	reduce:
 		And(lhs, True()) -> lhs
 	reduce:
 		And(_, False()) -> False()
 	reduce:
+		And(e1, e2) -> And(e1, <reduce> e2)
+	reduce:
 		App(Abs(x, t, e), e') -> <subst> (x, e, e')
+	reduce:
+		App(e1, e2) -> App(<reduce> e1, e2)
 
 	normalize:
 		Module(x, e*) -> Module(x, e'*)

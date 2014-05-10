@@ -4,6 +4,8 @@ module test
 True,
 ~True,
 True and False,
+True and True and True,
+~~True,
 x,
 \x : Bool. x,
 (\x : Bool. x) True,
