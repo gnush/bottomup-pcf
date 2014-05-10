@@ -6,9 +6,9 @@ imports
 
 signature constructors
 	CEq : Type * Type -> Constraint
-	CBinding : STRING * Type -> Constraint
-	
-	TUnbound : STRING -> Type
+	// CBinding : STRING * Type -> Constraint
+	// 
+	// TUnbound : STRING -> Type
 	TVar     : STRING -> Type
 	
 rules
@@ -40,24 +40,38 @@ rules
 	// 		 (t2, c2) := <infer> (env, e2, c);
 	// 		 t'       := TVar(<newname> "newType");
 	// 		 c'       := <concat> [c, c1, c2, [CEq(t1, Function(t2, t'))]]
-	infer: (True(), c)      -> (Bool(), c)
-	infer: (False(), c)     -> (Bool(), c)
-	infer: (Not(e), c)      -> (Bool(), c'')
-		with (t', c') := <infer> (e, c);
-			 c''      := <concat> [c, c', [CEq(Bool(), t')]]
-	infer: (And(e1, e2), c) -> (Bool(), c')
+	infer: (True(), c)      -> (Bool(), c, [])
+	infer: (False(), c)     -> (Bool(), c, [])
+	infer: (Not(e), c)      -> (Bool(), c'', bindings)
+		with (t', c', bindings) := <infer> (e, c);
+			 c''                := <unions> [c, c', [CEq(Bool(), t')]]
+	infer: (And(e1, e2), c) -> (Bool(), c', bindings)
 		with (t1, c1, bindings1) := <infer> (e1, c);
 			 (t2, c2, bindings2) := <infer> (e2, c);
-			 c'       := <concat> [c, c1, c2, [CEq(Bool(), t1), CEq(Bool(), t2)]]
-	infer: (Var(x), c)      -> (ty, c, [(x,ty)]) where ty := <newname> "T"
-	infer: (Abs(x, t, e), c) -> (Function(t, t'), c'')
-		with (t', c') := <infer> (e, c);
-		     c''      := <concat> [c, c', [CBinding(x, t)]]
-	infer: (App(e1, e2), c)  -> (t', c')
-		with (t1, c1) := <infer> (e1, c);
-			 (t2, c2) := <infer> (e2, c);
-			 t'       := TVar(<newname> "newType");
-			 c'       := <concat> [c, c1, c2, [CEq(t1, Function(t2, t'))]]
+			 bindings := <union> (bindings1, bindings2);
+			 isect    := <isect> (bindings1, bindings2);
+			 c'       := <unions> [c, c1, c2, [CEq(Bool(), t1), CEq(Bool(), t2)], <mk-bindings> (isect, [])]
+	infer: (Var(x), c)      -> (ty, c, [(x,ty)]) where ty := TVar(<newname> "T")
+	infer: (Abs(x, t, e), c) -> (Function(t, t'), c'', bindings')
+		with (t', c', bindings) := <infer> (e, c);
+			 bindings' := [(x, t)|bindings];
+		     c''       := <unions> [c, c', <mk-bindings> (bindings', [])]
+	infer: (App(e1, e2), c)  -> (t', c', bindings)
+		with (t1, c1, bindings1) := <infer> (e1, c);
+			 (t2, c2, bindings2) := <infer> (e2, c);
+			 bindings := <union> (bindings1, bindings2);
+			 isect    := <isect> (bindings1, bindings2);
+			 t' := TVar(<newname> "T");
+			 c' := <unions> [c, c1, c2, [CEq(t1, Function(t2, t'))], <mk-bindings> (isect, [])]
+
+	//test-bindings: e -> <mk-bindings> ([("x", "T"), ("y", "T1"), ("x", "T2"), ("x", "T3"), ("y", "T4")], [])
+	// -> [T = T2, T = T3, T2 = T3, T1 = T4]
+
+	//mk-bindings: (bindings, constraints) -> constraints
+	mk-bindings: ([], c) -> c
+	mk-bindings: ([(x, t)|bs], c) -> <mk-bindings> (bs, c'')
+		with c'  := <filter(?(x, _) ; \ (_, t') -> CEq(t, t') \)> bs;
+		     c'' := <union> (c, c') 
 
 	solve: c -> c
 
@@ -83,16 +97,16 @@ rules
 		     mgu1 := mgu; //map subst over mgu
 		     mgu' := [(x, t)|mgu]
 	
-	unify: ([], mgu) -> ([], mgu) // stop?
+	unify: ([], mgu) -> ([], mgu)
 	
 	
 	// eliminate TUnbound with CBinding before unification
 	occurs: (var, Bool())          -> <fail>
 	occurs: (var, TVar(var))       -> <id>
-	occurs: (var, TVar(x))         -> <fail>
+	occurs: (var, TVar(_))         -> <fail>
 	occurs: (var, Function(t, t')) -> <if <occurs> (var, t)
 										then id
-										else <occurs> (var, t') end>   
+										else <occurs> (var, t') end>
 
 	// substitute x in t with t'
 	subst: (x, Bool(), t')           -> Bool()
