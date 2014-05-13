@@ -98,8 +98,8 @@ rules
 	unify: ([CEq(TVar(x), t)|cs], mgu) -> <if <occurs> (x, t)
 											then fail // x occurs in t
 											else <unify> (cs', mgu') end> // variable elimination
-		with cs'  := cs; //map subst over cs
-		     mgu1 := mgu; //map subst over mgu
+		with cs'  := <map(\ CEq(t1, t2) -> CEq(<subst> (x, t1, t), <subst> (x, t2, t)) \)> cs; //map subst over cs
+		     mgu1 := <map(\ (y, t1) -> (y, <subst> (x, t1, t)) \)> mgu; //map subst over mgu
 		     mgu' := [(x, t)|mgu]
 	
 	unify: ([], mgu) -> ([], mgu)
