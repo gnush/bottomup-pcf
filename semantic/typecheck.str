@@ -6,15 +6,16 @@ imports
 
 signature constructors
 	CEq : Type * Type -> Constraint
-	// CBinding : STRING * Type -> Constraint
-	// 
-	// TUnbound : STRING -> Type
 	TVar     : STRING -> Type
 	
 rules
-	typeinfer: e -> (t, c')
-		with (t, c) := <infer> (e, []);
-			 c'     := <nub> c
+	typeinfer: Module(x, e*) -> t*
+		with
+			t* := <map(typeinfer)> e*
+	typeinfer: e -> (t, c', bindings')
+		with (t, c, bindings) := <infer> (e, []);
+			 c'        := <nub> c;
+			 bindings' := <nub> bindings
 
 	// (env, e, c) -> (t, c)
 	// infer: (env, True(), c)      -> (Bool(), c)
@@ -51,7 +52,8 @@ rules
 			 bindings := <union> (bindings1, bindings2);
 			 isect    := <isect> (bindings1, bindings2);
 			 c'       := <unions> [c, c1, c2, [CEq(Bool(), t1), CEq(Bool(), t2)], <mk-bindings> (isect, [])]
-	infer: (Var(x), c)      -> (ty, c, [(x,ty)]) where ty := TVar(<newname> "T")
+	infer: (Var(x), c)      -> (ty, c, [(x,ty)])
+		with ty := TVar(<newname> "T")
 	infer: (Abs(x, t, e), c) -> (Function(t, t'), c'', bindings')
 		with (t', c', bindings) := <infer> (e, c);
 			 bindings' := [(x, t)|bindings];
@@ -99,8 +101,7 @@ rules
 	
 	unify: ([], mgu) -> ([], mgu)
 	
-	
-	// eliminate TUnbound with CBinding before unification
+	// if var occurs in term true, else false 
 	occurs: (var, Bool())          -> <fail>
 	occurs: (var, TVar(var))       -> <id>
 	occurs: (var, TVar(_))         -> <fail>
@@ -116,7 +117,7 @@ rules
 	subst: (x, TVar(x), t')          -> t'
 	subst: (x, TVar(y), t')          -> TVar(y)
 
-	// wrong, unifing typed and not terms
+	// wrong, unifing type and not terms
 	// occurs: (var, True())       -> <fail>
 	// occurs: (var, False())      -> <fail>
 	// occurs: (var, Not(e))       -> <occurs> (var, e)
