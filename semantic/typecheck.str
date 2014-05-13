@@ -75,7 +75,10 @@ rules
 		with c'  := <filter(?(x, _) ; \ (_, t') -> CEq(t, t') \)> bs;
 		     c'' := <union> (c, c') 
 
-	solve: c -> c
+	// solve: c -> <unify> (c, []) 
+	solve: e -> (c, c', mgu)
+		with (t, c, b) := <typeinfer> e;
+			 (c', mgu) := <unify> (c, [])
 
 
   // (x + 1) + ((\y. 1) x)
