@@ -37,6 +37,26 @@ rules
 			 bindings := <union> (bindings1, bindings2);
 			 isect    := <isect> (bindings1, bindings2);
 			 c'       := <unions> [c, c1, c2, [CEq(Bool(), t1), CEq(Bool(), t2)], <mk-bindings> (isect, [])]
+	infer: (Num(_), c)      -> (TNum(), c, [])
+	infer: (Add(e1, e2), c) -> (TNum(), c', bindings)
+		with (t1, c1, bindings1) := <infer> (e1, c);
+			 (t2, c2, bindings2) := <infer> (e2, c);
+			 bindings := <union> (bindings1, bindings2);
+			 isect    := <isect> (bindings1, bindings2);
+			 c'       := <unions> [c, c1, c2, [CEq(TNum(), t1), CEq(TNum(), t2)], <mk-bindings> (isect, [])]
+	infer: (Gt(e1, e2), c)  -> (Bool(), c', bindings)
+		with (t1, c1, bindings1) := <infer> (e1, c);
+			 (t2, c2, bindings2) := <infer> (e2, c);
+			 bindings := <union> (bindings1, bindings2);
+			 isect    := <isect> (bindings1, bindings2);
+			 c'       := <unions> [c, c1, c2, [CEq(TNum(), t1), CEq(TNum(), t2)], <mk-bindings> (isect, [])]
+	infer: (Cond(cond, then, else), c) -> (t2, c', bindings)
+		with (t1, c1, bindings1) := <infer> (cond, c);
+			 (t2, c2, bindings2) := <infer> (then, c);
+			 (t3, c3, bindings3) := <infer> (else, c);
+			 bindings := <unions> [bindings1, bindings2, bindings3];
+			 isect    := <isect> (<isect> (bindings1, bindings2), bindings3) ;
+			 c'       := <unions> [c, c1, c2, [CEq(Bool(), t1), CEq(t2, t3)], <mk-bindings> (isect, [])]
 	infer: (Var(x), c)      -> (ty, c, [(x,ty)])
 		with ty := TVar(<newname> "T")
 	infer: (Abs(x, t, e), c) -> (Function(t, t'), c'', bindings')
@@ -77,6 +97,10 @@ rules
 	
 	unify: ([CEq(Bool(), Function(_, _))|cs], mgu) -> <fail> // clash
 	unify: ([CEq(Function(_, _), Bool())|cs], mgu) -> <fail>
+	unify: ([CEq(TNum(), Bool())|cs], mgu)  -> <fail>
+	unify: ([CEq(Bool(), TNum())|cs], mgu)  -> <fail>
+	unify: ([CEq(Function(_, _), TNum())|cs], mgu)  -> <fail>
+	unify: ([CEq(TNum(), Function(_, _))|cs], mgu)  -> <fail>
 	
 	unify: ([CEq(t, TVar(x))|cs], mgu) -> <unify> ([CEq(TVar(x), t)|cs], mgu) // orient
 	
@@ -91,6 +115,7 @@ rules
 	
 	// if var occurs in term true, else false 
 	occurs: (var, Bool())          -> <fail>
+	occurs: (var, TNum())          -> <fail>
 	occurs: (var, TVar(var))       -> <id>
 	occurs: (var, TVar(_))         -> <fail>
 	occurs: (var, Function(t, t')) -> <if <occurs> (var, t)
@@ -99,6 +124,7 @@ rules
 
 	// substitute x in t with t'
 	tSubst: (x, Bool(), t')           -> Bool()
+	tSubst: (x, TNum(), t')           -> TNum()
 	tSubst: (x, Function(t1, t2), t') -> Function(t1', t2')
 		with t1' := <tSubst> (x, t1, t');
 			 t2' := <tSubst> (x, t2, t')
