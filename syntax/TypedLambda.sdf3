@@ -14,6 +14,10 @@ lexical syntax
    "and" -> ID {reject}
    "module" -> ID {reject}
    "Bool" -> ID {reject}
+   "Num"  -> ID {reject}
+   "if"  -> ID {reject}
+   "then"  -> ID {reject}
+   "else"  -> ID {reject}
    
 templates
   
@@ -25,9 +29,14 @@ templates
   Expr.False   = [False]
   Expr.Not     = [~[Expr]]
   Expr.And     = [[Expr] and [Expr]] {left}
+  Expr.Num     = [[INT]]
+  Expr.Add     = [[Expr] + [Expr]] {left}
+  Expr.Cond    = [if [Expr] then [Expr] else [Expr]]
+  Expr.Gt      = [[Expr] > [Expr]]  
   Expr = [([Expr])] {bracket}
   
   Type.Bool     = [Bool]
+  Type.TNum     = [Num]
   Type.Function = [[Type] -> [Type]]
   
 context-free priorities
@@ -38,8 +47,11 @@ context-free priorities
   	Expr.Not
   } > {
   	Expr.And
+  	Expr.Add
   } > {
   	Expr.App
   } > {
   	Expr.Abs
+  } > {
+  	Expr.Cond
   }

@@ -6,29 +6,30 @@ imports
 	semantic/substitution
 	trans/util
 
-rules	
-	reduce:
-		Not(True()) -> False()
-	reduce:
-		Not(False()) -> True()
-	reduce:
-		Not(e) -> Not(<reduce> e)
-	reduce:
-		And(lhs, True()) -> lhs
-	reduce:
-		And(_, False()) -> False()
-	reduce:
-		And(e1, e2) -> And(e1, <reduce> e2)
-	reduce:
-		App(Abs(x, t, e), e') -> <subst> (x, e, e')
-	reduce:
-		App(e1, e2) -> App(<reduce> e1, e2)
+// 
 
-	normalize:
-		Module(x, e*) -> Module(x, e'*)
-		with
-			e'* := <map(normalize)> e*
-	normalize:
-		e -> e1
-		with
-			e1 := <innermost(reduce)> e
+rules	
+	reduce: Not(True()) -> False()
+	reduce: Not(False()) -> True()
+	reduce: Not(e) -> Not(<reduce> e)
+	reduce: And(lhs, True()) -> lhs
+	reduce: And(_, False()) -> False()
+	reduce: And(e1, e2) -> And(e1, <reduce> e2)
+	reduce: Add(Num(n), Num(m)) -> Num(<addS> (n, m)) // why are these strings?
+	reduce: Cond(True(), then, _) -> then
+	reduce: Cond(False(), _, else) -> else
+	reduce: Cond(cond, then, else) -> Cond(<reduce> cond, then, else)
+	reduce: Gt(Num(n), Num(m)) -> <if <gtS> (n, m) then !True() else !False() end>
+	reduce: Gt(e1, e2) -> Gt(<reduce> e1, e2)
+	reduce: Gt(e1, e2) -> Gt(e1, <reduce> e2)
+	reduce: Add(e1, e2) -> Add(<reduce> e1, e2)
+	reduce: Add(e1, e2) -> Add(e1, <reduce> e2)
+	reduce: App(Abs(x, t, e), e') -> <subst> (x, e, e')
+	reduce: App(e1, e2) -> App(<reduce> e1, e2)
+
+	normalize: Module(x, e*) -> Module(x, e'*)
+		with e'* := <map(normalize)> e*
+	// normalize: e -> e1
+	// 	// with e1 := <innermost(reduce)> e
+	// 	with e1 := <topdown(repeat(reduce))> e
+	normalize: e -> <if <reduce> e then <normalize> (<reduce> e) else id end>
