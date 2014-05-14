@@ -9,13 +9,22 @@ signature constructors
 	TVar     : STRING -> Type
 	
 rules
-	typeinfer: Module(x, e*) -> t*
+	foldtest: e -> <foldr(!0, \ (x, xs) -> xs \)> [1, 2, 3]
+	
+	foldtypeinfer: (t, []) -> t
+	foldtypeinfer: (t, [(x, t')|mgu]) -> <foldtypeinfer> (t1, mgu)
+		with t1 := <tSubst> (x, t, t')
+	
+	typeinfer: Module(x, e*) -> <map(\ (t, c, b, mgu) -> 
+									<foldtypeinfer> (t, mgu)
+	 							\)> t*
 		with
 			t* := <map(typeinfer)> e*
-	typeinfer: e -> (t, c', bindings')
+	typeinfer: e -> (t, c', bindings', mgu)
 		with (t, c, bindings) := <infer> (e, []);
 			 c'        := <nub> c;
-			 bindings' := <nub> bindings
+			 bindings' := <nub> bindings;
+			 (_, mgu)  := <unify> (c', [])
 
 	// (env, e, c) -> (t, c)
 	// infer: (env, True(), c)      -> (Bool(), c)
@@ -76,9 +85,9 @@ rules
 		     c'' := <union> (c, c') 
 
 	// solve: c -> <unify> (c, []) 
-	solve: e -> (c, c', mgu)
+	solve: e -> (t, mgu)
 		with (t, c, b) := <typeinfer> e;
-			 (c', mgu) := <unify> (c, [])
+			 (c', mgu) := <unify> (c, []) <+ !([], []) ; <error> ["Typecheck Failed for ", e] 
 
 
   // (x + 1) + ((\y. 1) x)
@@ -98,8 +107,8 @@ rules
 	unify: ([CEq(TVar(x), t)|cs], mgu) -> <if <occurs> (x, t)
 											then fail // x occurs in t
 											else <unify> (cs', mgu') end> // variable elimination
-		with cs'  := <map(\ CEq(t1, t2) -> CEq(<subst> (x, t1, t), <subst> (x, t2, t)) \)> cs; //map subst over cs
-		     mgu1 := <map(\ (y, t1) -> (y, <subst> (x, t1, t)) \)> mgu; //map subst over mgu
+		with cs'  := <map(\ CEq(t1, t2) -> CEq(<tSubst> (x, t1, t), <tSubst> (x, t2, t)) \)> cs; //map subst over cs
+		     mgu1 := <map(\ (y, t1) -> (y, <tSubst> (x, t1, t)) \)> mgu; //map subst over mgu
 		     mgu' := [(x, t)|mgu]
 	
 	unify: ([], mgu) -> ([], mgu)
@@ -113,12 +122,12 @@ rules
 										else <occurs> (var, t') end>
 
 	// substitute x in t with t'
-	subst: (x, Bool(), t')           -> Bool()
-	subst: (x, Function(t1, t2), t') -> Function(t1', t2')
-		with t1' := <subst> (x, t1, t');
-			 t2' := <subst> (x, t2, t')
-	subst: (x, TVar(x), t')          -> t'
-	subst: (x, TVar(y), t')          -> TVar(y)
+	tSubst: (x, Bool(), t')           -> Bool()
+	tSubst: (x, Function(t1, t2), t') -> Function(t1', t2')
+		with t1' := <tSubst> (x, t1, t');
+			 t2' := <tSubst> (x, t2, t')
+	tSubst: (x, TVar(x), t')          -> t'
+	tSubst: (x, TVar(y), t')          -> TVar(y)
 
 	// wrong, unifing type and not terms
 	// occurs: (var, True())       -> <fail>

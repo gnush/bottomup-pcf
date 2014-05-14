@@ -6,7 +6,7 @@ imports
 
 context-free start-symbols
   
-  Start
+  Module
 
 lexical syntax
    "False" -> ID {reject}
@@ -17,7 +17,7 @@ lexical syntax
    
 templates
   
-  Start.Module = [module [ID] [Expr*; separator="\n,\n"]]
+  Module.Module = [module [ID] [Expr*; separator="\n,\n"]]
   Expr.Var     = [[ID]]
   Expr.App     = [[Expr] [Expr]] {left}
   Expr.Abs     = [\\[ID] : [Type]. [Expr]]

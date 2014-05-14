@@ -10,7 +10,7 @@ imports
 rules
 	
   pp-TypedLambda-string =
-    prettyprint-Start
+    prettyprint-Module
     ; !V([], <id>)
     ; box2text-string(|120)
       
