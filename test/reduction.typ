@@ -24,13 +24,20 @@ True,
 (\x: Bool. \y: Bool. x and y) True False,
 (\x: Bool. \x: Bool. x) True,
 if ~True then 1 else 2,
-(\fix:Bool.
+(\g:Bool. (\x:Bool. g (x x)) (\x:Bool. g (x x))) (\sum:Bool.
   (\n: Num. (if 1>n
                then 0
-               else n+(fix (-1+n))
+               else n+(sum (-1+n))
              )
   )
-) (\g:Bool. (\x:Bool. g (x x)) (\x:Bool. g (x x))),
+) 10,
+(\g:Bool. (\x:Bool. g (x x)) (\x:Bool. g (x x))) (\fib:Bool.
+  (\n: Num. (if 3>n
+               then 1
+               else (fib (-1+n)) + (fib (-2+n))
+             )
+  )
+) 5,
 
 x,
 x and True,

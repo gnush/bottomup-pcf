@@ -6,9 +6,9 @@ imports
 	semantic/substitution
 	trans/util
 
-// 
+//  
 
-rules	
+rules
 	reduce: Not(True()) -> False()
 	reduce: Not(False()) -> True()
 	reduce: Not(e) -> Not(<reduce> e)
@@ -31,5 +31,6 @@ rules
 		with e'* := <map(normalize)> e*
 	// normalize: e -> e1
 	// 	// with e1 := <innermost(reduce)> e
-	// 	with e1 := <topdown(repeat(reduce))> e
-	normalize: e -> <if <reduce> e then <normalize> (<reduce> e) else id end>
+	normalize = reduce; normalize
+	normalize = not(reduce)
+	// normalize: e -> <if <reduce> e then <normalize> (<reduce> e) else id end>

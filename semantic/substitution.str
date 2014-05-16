@@ -5,35 +5,38 @@ imports
 	include/TypedLambda
 
 rules 
-	// substitute x in e with e'
+	// substitute x in e where e'
+	subst: (_, True(), _)    -> True()
+	subst: (_, False(), _)   -> False()
 	subst: (x, Not(e), e') -> Not(<subst> (x, e, e'))
 	subst: (x, And(lhs, rhs), e) -> And(lhs', rhs')
-		with lhs' := <subst> (x, lhs, e);
+		where lhs' := <subst> (x, lhs, e);
 			 rhs' := <subst> (x, rhs, e)
+	subst: (x, Num(n), e') -> Num(n)
 	subst: (x, Add(lhs, rhs), e) -> Add(lhs', rhs')
-		with lhs' := <subst> (x, lhs, e);
+		where lhs' := <subst> (x, lhs, e);
 			 rhs' := <subst> (x, rhs, e)
 	subst: (x, Gt(lhs, rhs), e) -> Gt(lhs', rhs')
-		with lhs' := <subst> (x, lhs, e);
+		where lhs' := <subst> (x, lhs, e);
 			 rhs' := <subst> (x, rhs, e)
 	subst: (x, Cond(cond, then, else), e) -> Cond(cond', then', else')
-		with cond' := <subst> (x, cond, e);
+		where cond' := <subst> (x, cond, e);
 			 then' := <subst> (x, then, e);
 			 else' := <subst> (x, else, e)
 	subst: (x, App(e1, e2), e) -> App(e1', e2')
-		with e1' := <subst> (x, e1, e);
+		where e1' := <subst> (x, e1, e);
 			 e2' := <subst> (x, e2, e)
 	subst: (x, Abs(y, t, e1), e) -> e'
-		with free  := <freevars> e;
+		where free  := <freevars> e;
 			 fresh := <newname> y;
 			 e'    := <if equal(|x, y) then !Abs(y, t, e1)
 				                       else if <elem> (y, free)
-				                     		 then !Abs(fresh, t, <subst> (x, <subst> (y, e1, Var(fresh)), e)) // y? but strange with reduction test
+				                     		 then !Abs(fresh, t, <subst> (x, <subst> (y, e1, Var(fresh)), e)) // y? but strange where reduction test
 				                     		 else !Abs(y, t, <subst> (x, e1, e))
 				                     		 end
 				                       end>
 	subst: (x, Var(y), e) -> <if(equal(|x, y), !e, !Var(y))>
-	subst: (x, e, e') -> e // id for all other 
+	subst: (x, e, e') -> <debug(!"subst: ")>
 	
 	// returns the free vars of an expr as a list 
 	freevars: True() -> []
@@ -41,37 +44,23 @@ rules
 	freevars: Var(x) -> [x]
 	freevars: Not(e) -> <freevars> e
 	freevars: And(lhs, rhs) -> <concat> [lhs*, rhs*]
-		with lhs* := [<freevars> lhs];
+		where lhs* := [<freevars> lhs];
 			 rhs* := [<freevars> rhs]
+	freevars: Num(_) -> []
 	freevars: Add(lhs, rhs) -> <concat> [lhs*, rhs*]
-		with lhs* := [<freevars> lhs];
+		where lhs* := [<freevars> lhs];
 			 rhs* := [<freevars> rhs]
 	freevars: Gt(lhs, rhs) -> <concat> [lhs*, rhs*]
-		with lhs* := [<freevars> lhs];
+		where lhs* := [<freevars> lhs];
 			 rhs* := [<freevars> rhs]
 	freevars: Cond(cond, then, else) -> <concat> [cond*, then*, else*]
-		with cond* := <freevars> cond;
+		where cond* := <freevars> cond;
 			 then* := <freevars> then;
 			 else* := <freevars> else
 	freevars: Abs(x, t, e) -> e*
-		with e'*  := <freevars> e;
+		where e'*  := <freevars> e;
 			 e*    := <filter(not(?x))> e'*
 	freevars: App(e1, e2) -> <concat> [e1*, e2*]
-		with e1* := [<freevars> e1];
+		where e1* := [<freevars> e1];
 			 e2* := [<freevars> e2]
-			
-	// renames free occurences of x in e with x'
-	// rename_var: (x, Not(e), x')      -> Not(<rename_var> (x, e, x'))
-	// rename_var: (x, And(e1, e2), x') -> And(e1', e2')
-	// 	with e1' := <rename_var> (x, e1, x');
-	// 		 e2' := <rename_var> (x, e2, x')
-	// rename_var: (x, App(e1, e2), x') -> App(e1', e2')
-	// 	with e1' := <rename_var> (x, e1, x');
-	// 		 e2' := <rename_var> (x, e2, x')
-	// rename_var: (x, Abs(y, t, e), x')   -> Abs(y, t, e')
-	// 	with e' := <if equal(|x, y) then !e
-	// 								else <rename_var> (x, e, x')
-	// 									end>
-	// rename_var: (x, Var(y), x')      -> Var(<if equal(|x, y) then !y else !x' end>)
-	// rename_var: (x, True(), x')      -> True()
-	// rename_var: (x, False(), x')     -> False()
+	freevars: e -> <debug(!"freevars: ")>
