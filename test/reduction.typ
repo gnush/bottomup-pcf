@@ -5,6 +5,7 @@ module reduction
 1+-1,
 True,
 (False),
+True and False,
 ~(True and False and True and True and False),
 ~~~~True,
 ~(True and ~False),

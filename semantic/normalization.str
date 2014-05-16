@@ -6,8 +6,6 @@ imports
 	semantic/substitution
 	trans/util
 
-//  
-
 rules
 	reduce: Not(True()) -> False()
 	reduce: Not(False()) -> True()
@@ -29,8 +27,5 @@ rules
 
 	normalize: Module(x, e*) -> Module(x, e'*)
 		with e'* := <map(normalize)> e*
-	// normalize: e -> e1
-	// 	// with e1 := <innermost(reduce)> e
 	normalize = reduce; normalize
 	normalize = not(reduce)
-	// normalize: e -> <if <reduce> e then <normalize> (<reduce> e) else id end>
