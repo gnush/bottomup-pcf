@@ -3,6 +3,7 @@ module welltyped
 True,
 ~True,
 True and False,
+True and ~False,
 True and True and True,
 ~~True,
 \x : Bool. x,

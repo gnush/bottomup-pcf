@@ -43,38 +43,40 @@ rules
               mgu       := <solveConstraints> c
     typeinfer = debug(!"typeinfer: "); fail
 
-    generateConstraints: True() -> (Bool(), [], [])
-    generateConstraints: False() -> (Bool(), [], [])
-    generateConstraints: Num(_) -> (TNum(), [], [])
-    generateConstraints: Not((t, c, b)) -> (Bool(), <nub> [CEq(t, Bool())|c], b)
-    generateConstraints: And((t1, c1, b1), (t2, c2, b2)) -> (Bool(), c', b)
+    gen = bottomup(try(generateConstraints))
+
+    generateConstraints: True() -> <debug(!"True: ")> (Bool(), [], [])
+    generateConstraints: False() -> <debug(!"False: ")> (Bool(), [], [])
+    generateConstraints: Num(_) -> <debug(!"Num: ")> (TNum(), [], [])
+    generateConstraints: Not((t, c, b)) -> <debug(!"Not: ")> (Bool(), <nub> [CEq(t, Bool())|c], b)
+    generateConstraints: And((t1, c1, b1), (t2, c2, b2)) -> <debug(!"And: ")> (Bool(), c', b)
         where b     := <bUnion> (b1, b2); 
               c     := <unions> [c1, c2, [CEq(Bool(), t1), CEq(Bool(), t2)], <isectConstraints> (b1, b2)];
               c'    := <nub> c
-    generateConstraints: Add((t1, c1, b1), (t2, c2, b2)) -> (TNum(), c', b)
+    generateConstraints: Add((t1, c1, b1), (t2, c2, b2)) -> <debug(!"Add: ")> (TNum(), c', b)
         where b     := <bUnion> (b1, b2); 
               c     := <unions> [c1, c2, [CEq(TNum(), t1), CEq(TNum(), t2)], <isectConstraints> (b1, b2)];
               c'    := <nub> c
-    generateConstraints: Gt((t1, c1, b1), (t2, c2, b2)) -> (TNum(), c', b)
+    generateConstraints: Gt((t1, c1, b1), (t2, c2, b2)) -> <debug(!"Gt: ")> (TNum(), c', b)
 	    where b     := <bUnion> (b1, b2); 
 	              c     := <unions> [c1, c2, [CEq(TNum(), t1), CEq(TNum(), t2)], <isectConstraints> (b1, b2)];
 	              c'    := <nub> c
 	generateConstraints: Cond((tCond, cCond, bCond),
-	              (tThen, cThen, bThen),
-	              (tElse, cElse, bElse)) -> (tThen, c', b)
+	                          (tThen, cThen, bThen),
+	                          (tElse, cElse, bElse)) -> <debug(!"Cond: ")> (tThen, c', b)
         where b  := <bUnion> (bCond, <bUnion> (bThen, bElse));
               c  := <unions> [cCond, cThen, cElse
                              ,[CEq(Bool(), tCond), CEq(tThen, tElse)]
                              ,<isectConstraints> (bCond, <isectConstraints> (bThen, bElse))];
               c' := <nub> c
-    generateConstraints: Var(x) -> (ty, [], [B(x, ty)])
+    generateConstraints: Var(x) -> <debug(!"Var: ")> (ty, [], [B(x, ty)])
         where ty := TVar(<newname> "T")
-    generateConstraints: App((t1, c1, b1), (t2, c2, b2)) -> (t, c', b)
+    generateConstraints: App((t1, c1, b1), (t2, c2, b2)) -> <debug(!"App: ")> (t, c', b)
         where t  := TVar(<newname> "T");
               b  := <bUnion> (<union> (b1, b2));
               c  := <unions> [c1, c2, [CEq(t1, Function(t2, t))], <isectConstraints> (b1, b2)];
               c' := <nub> c
-    generateConstraints: Abs(x, t, (t', c, b)) -> (Function(t, t'), <isectConstraints> ([B], b), b) //[B|b])
+    generateConstraints: Abs(x, t, (t', c, b)) -> <debug(!"Abs: ")> (Function(t, t'), <isectConstraints> ([B], b), b) //[B|b])
         where B := B(x, t)
 
     // (type, constraints) -> mgu
@@ -144,3 +146,30 @@ rules
     isectConstraints: ([B(x, t)|xs], ys) -> <union> (c, <isectConstraints> (xs, ys))
         where c := <filter(?B(x, _) ; \ (_, t') -> CEq(t, t') \)> ys
     isectConstraints = debug(!"isectConstraints: "); fail
+    
+    
+// (\x : Bool -> Bool. x) (\x : Bool. x)
+//     
+// generates
+//     
+// ( TVar("T6")
+// , [ CEq(Function(Bool(), Bool()), TVar("T4"))
+//   , CEq(Bool(), TVar("T5"))
+//   , CEq(
+//       Function(Function(Bool(), Bool()), TVar("T4"))
+//     , Function(Function(Bool(), TVar("T5")), TVar("T6"))
+//     )
+//   , CEq(TVar("T4"), TVar("T5"))
+// ]
+// , [B("x", TVar("T4"))]
+// )
+// 
+// and CEq(TVar("T4"), TVar("T5")) is wrong
+// 
+// Var: (TVar("T4"),[],[B("x",TVar("T4"))])
+// Abs: (Function(Function(Bool,Bool),TVar("T4")),[CEq(Function(Bool,Bool),TVar("T4"))],[B("x",TVar("T4"))])
+// Var: (TVar("T5"),[],[B("x",TVar("T5"))])
+// Abs: (Function(Bool,TVar("T5")),[CEq(Bool,TVar("T5"))],[B("x",TVar("T5"))])
+// App: (TVar("T6"),[CEq(Function(Bool,Bool),TVar("T4")),CEq(Bool,TVar("T5")),CEq(Function(Function(Bool,Bool),TVar("T4")),Function(Function(Bool,TVar("T5")),TVar("T6"))),CEq(TVar("T4"),TVar("T5"))],[B("x",TVar("T4"))])
+// 
+// remove vars from bindings in abs?
