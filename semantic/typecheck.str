@@ -19,27 +19,17 @@ rules
     app_mgu: (t, [(x, t')|mgu]) -> <app_mgu> (t1, mgu)
         where t1 := <tSubst> (x, t, t')
     app_mgu = debug(!"app_mgu: "); fail
-        
-	
-	// typeinfer: Module(x, e*) -> <map(\ (t, c, b, mgu) -> 
-	// 								<app_mgu> (t, mgu)
-	//  							\)> t*
-	// 	with
-	// 		t* := <map(typeinfer)> e*
-	// typeinfer: e -> (t, c', bindings', mgu)
-	// 	with (t, c, bindings) := <infer> (e, []);
-	// 		 c'        := <nub> c;
-	// 		 bindings' := <nub> bindings;
-	// 		 (_, mgu)  := <unify> (c', [])
 
     bu: Module(x, e*) -> <map(bu)> e*
     bu = bottomup(try(repeat(generateConstraints)))
 
-    typeinfer: Module(x, e*) -> <map(\ (t, c, b, mgu) -> (t, c, b, mgu, <app_mgu> (t, mgu)) \)> t*
+    types: Module(x, e*) -> <map(\ (_, _, _, _, t) -> t\)> t*
+        where t* := <map(typeinfer)> e*
+
+    typeinfer: Module(x, e*) -> t*
         where t* := <map(typeinfer)> e*
     typeinfer: e -> (t, c, b, mgu, <app_mgu> (t, mgu))
         where (t, c, b) := <bottomup(try(repeat(generateConstraints)))> e;
-              //(_, mgu)  := <unify> (c, [])//;
               mgu       := <solveConstraints> c
     typeinfer = debug(!"typeinfer: "); fail
 
@@ -57,7 +47,7 @@ rules
         where b     := <bUnion> (b1, b2); 
               c     := <unions> [c1, c2, [CEq(TNum(), t1), CEq(TNum(), t2)], <isectConstraints> (b1, b2)];
               c'    := <nub> c
-    generateConstraints: Gt((t1, c1, b1), (t2, c2, b2)) -> <debug(!"Gt: ")> (TNum(), c', b)
+    generateConstraints: Gt((t1, c1, b1), (t2, c2, b2)) -> <debug(!"Gt: ")> (Bool(), c', b)
 	    where b     := <bUnion> (b1, b2); 
 	              c     := <unions> [c1, c2, [CEq(TNum(), t1), CEq(TNum(), t2)], <isectConstraints> (b1, b2)];
 	              c'    := <nub> c
@@ -76,8 +66,7 @@ rules
               b  := <bUnion> (<union> (b1, b2));
               c  := <unions> [c1, c2, [CEq(t1, Function(t2, t))], <isectConstraints> (b1, b2)];
               c' := <nub> c
-    generateConstraints: Abs(x, t, (t', c, b)) -> <debug(!"Abs: ")> (Function(t, t'), <isectConstraints> ([B], b), b) //[B|b])
-        where B := B(x, t)
+    generateConstraints: Abs(x, t, (t', c, b)) -> <debug(!"Abs: ")> (Function(t, t'), <isectConstraints> ([B(x, t)], b), <filter(not(?(x, _)))> b)
 
     // (type, constraints) -> mgu
     solveConstraints: c -> mgu

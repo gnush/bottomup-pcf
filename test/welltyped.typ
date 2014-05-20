@@ -14,5 +14,8 @@ True and True and True,
 \x : Bool. \y : Bool. x and y,
 (\x : Bool. \y : Bool. x and y) True True,
 if True then 1 else 2,
+1+2,
+12+13,
+1>2,
 if 1>2 then 1+1 else 1+2,
 if 1>2 then \x:Num. x else \x:Num. x
