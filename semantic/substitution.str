@@ -28,13 +28,23 @@ rules
 			 e2' := <subst> (x, e2, e)
 	subst: (x, Abs(y, t, e1), e) -> e'
 		where free  := <freevars> e;
-			 fresh := <newname> y;
-			 e'    := <if equal(|x, y) then !Abs(y, t, e1)
-				                       else if <elem> (y, free)
-				                     		 then !Abs(fresh, t, <subst> (x, <subst> (y, e1, Var(fresh)), e)) // y? but strange where reduction test
+			  fresh := <newname> y;
+			  e'    := <if equal(|x, y) then !Abs(y, t, e1)
+				                        else if <elem> (y, free)
+				                     		 then !Abs(fresh, t, <subst> (x, <subst> (y, e1, Var(fresh)), e))
 				                     		 else !Abs(y, t, <subst> (x, e1, e))
 				                     		 end
 				                       end>
+    subst: (x, Fix(y, t, e1), e) -> e'
+        where free  := <freevars> e;
+              fresh := <newname> y;
+              e'    := <if equal(|x, y) then !Fix(y, t, e1)
+                                        else if <elem> (y, free)
+                                                then !Fix(fresh, t, <subst> (x, <subst> (y, e1, Var(fresh)), e))
+                                                else !Fix(y, t, <subst> (x, e1, e))
+                                             end
+                        end>
+    subst: (x, Let(y, t, e1, e1'), e) -> <subst> (x, App(Abs(y, t, e1'), e1), e)
 	subst: (x, Var(y), e) -> <if(equal(|x, y), !e, !Var(y))>
 	subst: (x, e, e') -> <debug(!"subst: ")>
 	
@@ -59,7 +69,11 @@ rules
 			 else* := <freevars> else
 	freevars: Abs(x, t, e) -> e*
 		where e'*  := <freevars> e;
-			 e*    := <filter(not(?x))> e'*
+			  e*   := <filter(not(?x))> e'*
+	freevars: Fix(x, t, e) -> e*
+	   where e'* := <freevars> e;
+	         e*  := <filter(not(?x))> e'*
+	freevars: Let(x, t, e, e') -> <freevars> App(Abs(x, t, e'), e)
 	freevars: App(e1, e2) -> <concat> [e1*, e2*]
 		where e1* := [<freevars> e1];
 			 e2* := [<freevars> e2]

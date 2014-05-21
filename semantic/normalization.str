@@ -22,8 +22,11 @@ rules
 	reduce: Gt(e1, e2) -> Gt(e1, <reduce> e2)
 	reduce: Add(e1, e2) -> Add(<reduce> e1, e2)
 	reduce: Add(e1, e2) -> Add(e1, <reduce> e2)
+	reduce: Let(x, t, e, e') -> App(Abs(x, t, e'), e)
 	reduce: App(Abs(x, t, e), e') -> <subst> (x, e, e')
 	reduce: App(e1, e2) -> App(<reduce> e1, e2)
+	reduce: Fix(x, t, Abs(y, t', e')) -> Abs(y, t', <subst> (x, e', Fix(x, t, Abs(y, t', e'))))
+	reduce: Fix(x, t, e) -> Fix(x, t, <reduce> e)
 
 	normalize: Module(x, e*) -> Module(x, e'*)
 		with e'* := <map(normalize)> e*

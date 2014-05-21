@@ -18,6 +18,7 @@ lexical syntax
    "if"  -> ID {reject}
    "then"  -> ID {reject}
    "else"  -> ID {reject}
+   "fix"   -> ID {reject}
    
 templates
   
@@ -32,12 +33,14 @@ templates
   Expr.Num     = [[INT]]
   Expr.Add     = [[Expr] + [Expr]] {left}
   Expr.Cond    = [if [Expr] then [Expr] else [Expr]]
-  Expr.Gt      = [[Expr] > [Expr]]  
+  Expr.Gt      = [[Expr] > [Expr]] {left}
+  Expr.Fix     = [fix [ID] : [Type]. [Expr]]
+  Expr.Let     = [[ID] : [Type] = [Expr]; [Expr]]
   Expr = [([Expr])] {bracket}
   
   Type.Bool     = [Bool]
   Type.TNum     = [Num]
-  Type.Function = [[Type] -> [Type]]
+  Type.Function = [[Type] -> [Type]] {left}
   
 context-free priorities
 
@@ -52,6 +55,8 @@ context-free priorities
   	Expr.App
   } > {
   	Expr.Abs
+  	Expr.Fix
+  	Expr.Let
   } > {
   	Expr.Cond
   }
