@@ -67,6 +67,8 @@ rules
               c  := <unions> [c1, c2, [CEq(t1, Function(t2, t))], <isectConstraints> (b1, b2)];
               c' := <nub> c
     generateConstraints: Abs(x, t, (t', c, b)) -> (Function(t, t'), <isectConstraints> ([B(x, t)], b), <filter(not(?(x, _)))> b)
+    generateConstraints: Fix(x, t, (t', c, b)) -> (t, <isectConstraints> ([B(x, t)], b), <filter(not(?(x, _)))> b)
+    generateConstraints: Let(x, t, (t1, c1, b1), (t2, c2, b2)) -> (Bool(), [], [])
 
     // (type, constraints) -> mgu
     solveConstraints: c -> mgu
