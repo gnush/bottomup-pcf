@@ -53,11 +53,11 @@ context-free priorities
   	Expr.Add
   	Expr.Gt
   } > {
-  	Expr.App
-  } > {
   	Expr.Abs
   	Expr.Fix
   	Expr.Let
+  } > {
+    Expr.App
   } > {
   	Expr.Cond
   }
