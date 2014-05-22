@@ -1,40 +1,40 @@
 module substitution
 
 imports
-	
-	include/TypedLambda
+
+    include/TypedLambda
 
 rules 
-	// substitute x in e where e'
-	subst: (_, True(), _)    -> True()
-	subst: (_, False(), _)   -> False()
-	subst: (x, Not(e), e') -> Not(<subst> (x, e, e'))
-	subst: (x, And(lhs, rhs), e) -> And(lhs', rhs')
-		where lhs' := <subst> (x, lhs, e);
-			 rhs' := <subst> (x, rhs, e)
-	subst: (x, Num(n), e') -> Num(n)
-	subst: (x, Add(lhs, rhs), e) -> Add(lhs', rhs')
-		where lhs' := <subst> (x, lhs, e);
-			 rhs' := <subst> (x, rhs, e)
-	subst: (x, Gt(lhs, rhs), e) -> Gt(lhs', rhs')
-		where lhs' := <subst> (x, lhs, e);
-			 rhs' := <subst> (x, rhs, e)
-	subst: (x, Cond(cond, then, else), e) -> Cond(cond', then', else')
-		where cond' := <subst> (x, cond, e);
-			 then' := <subst> (x, then, e);
-			 else' := <subst> (x, else, e)
-	subst: (x, App(e1, e2), e) -> App(e1', e2')
-		where e1' := <subst> (x, e1, e);
-			 e2' := <subst> (x, e2, e)
-	subst: (x, Abs(y, t, e1), e) -> e'
-		where free  := <freevars> e;
-			  fresh := <newname> y;
-			  e'    := <if equal(|x, y) then !Abs(y, t, e1)
-				                        else if <elem> (y, free)
-				                     		 then !Abs(fresh, t, <subst> (x, <subst> (y, e1, Var(fresh)), e))
-				                     		 else !Abs(y, t, <subst> (x, e1, e))
-				                     		 end
-				                       end>
+    // substitute x in e where e'
+    subst: (_, True(), _)    -> True()
+    subst: (_, False(), _)   -> False()
+    subst: (x, Not(e), e') -> Not(<subst> (x, e, e'))
+    subst: (x, And(lhs, rhs), e) -> And(lhs', rhs')
+        where lhs' := <subst> (x, lhs, e);
+              rhs' := <subst> (x, rhs, e)
+    subst: (x, Num(n), e') -> Num(n)
+    subst: (x, Add(lhs, rhs), e) -> Add(lhs', rhs')
+        where lhs' := <subst> (x, lhs, e);
+              rhs' := <subst> (x, rhs, e)
+    subst: (x, Gt(lhs, rhs), e) -> Gt(lhs', rhs')
+        where lhs' := <subst> (x, lhs, e);
+              rhs' := <subst> (x, rhs, e)
+    subst: (x, Cond(cond, then, else), e) -> Cond(cond', then', else')
+        where cond' := <subst> (x, cond, e);
+              then' := <subst> (x, then, e);
+              else' := <subst> (x, else, e)
+    subst: (x, App(e1, e2), e) -> App(e1', e2')
+        where e1' := <subst> (x, e1, e);
+              e2' := <subst> (x, e2, e)
+    subst: (x, Abs(y, t, e1), e) -> e'
+        where free  := <freevars> e;
+              fresh := <newname> y;
+              e'    := <if equal(|x, y) then !Abs(y, t, e1)
+                                        else if <elem> (y, free)
+                                     		 then !Abs(fresh, t, <subst> (x, <subst> (y, e1, Var(fresh)), e))
+                                     		 else !Abs(y, t, <subst> (x, e1, e))
+                                           end
+                                       end>
     subst: (x, Fix(y, t, e1), e) -> e'
         where free  := <freevars> e;
               fresh := <newname> y;
@@ -45,36 +45,36 @@ rules
                                              end
                         end>
     subst: (x, Let(y, t, e1, e1'), e) -> <subst> (x, App(Abs(y, t, e1'), e1), e)
-	subst: (x, Var(y), e) -> <if(equal(|x, y), !e, !Var(y))>
-	subst: (x, e, e') -> <debug(!"subst: ")>
-	
-	// returns the free vars of an expr as a list 
-	freevars: True() -> []
-	freevars: False() -> []
-	freevars: Var(x) -> [x]
-	freevars: Not(e) -> <freevars> e
-	freevars: And(lhs, rhs) -> <concat> [lhsV, rhsV]
-		where lhsV := <freevars> lhs;
-			  rhsV := <freevars> rhs
-	freevars: Num(_) -> []
-	freevars: Add(lhs, rhs) -> <concat> [lhsV, rhsV]
-		where lhsV := <freevars> lhs;
-			  rhsV := <freevars> rhs
-	freevars: Gt(lhs, rhs) -> <concat> [lhsV, rhsV]
-		where lhsV := <freevars> lhs;
-			  rhsV := <freevars> rhs
-	freevars: Cond(cond, then, else) -> <concat> [condV, thenV, elseV]
-		where condV := <freevars> cond;
-			  thenV := <freevars> then;
-			  elseV := <freevars> else
-	freevars: Abs(x, t, e) -> eV
-		where e'V  := <freevars> e;
-			  eV   := <filter(not(?x))> e'V
-	freevars: Fix(x, t, e) -> eV
-	   where e'V := <freevars> e;
-	         eV  := <filter(not(?x))> e'V
-	freevars: Let(x, t, e, e') -> <freevars> App(Abs(x, t, e'), e)
-	freevars: App(e1, e2) -> <concat> [e1V, e2V]
-		where e1V := <freevars> e1;
-			  e2V := <freevars> e2
-	freevars: e -> <debug(!"freevars: ")>
+    subst: (x, Var(y), e) -> <if(equal(|x, y), !e, !Var(y))>
+    subst = debug(!"subst: "); fail
+
+    // returns the free vars of an expr as a list 
+    freevars: True() -> []
+    freevars: False() -> []
+    freevars: Var(x) -> [x]
+    freevars: Not(e) -> <freevars> e
+    freevars: And(lhs, rhs) -> <concat> [lhsV, rhsV]
+        where lhsV := <freevars> lhs;
+              rhsV := <freevars> rhs
+    freevars: Num(_) -> []
+    freevars: Add(lhs, rhs) -> <concat> [lhsV, rhsV]
+        where lhsV := <freevars> lhs;
+              rhsV := <freevars> rhs
+    freevars: Gt(lhs, rhs) -> <concat> [lhsV, rhsV]
+        where lhsV := <freevars> lhs;
+              rhsV := <freevars> rhs
+    freevars: Cond(cond, then, else) -> <concat> [condV, thenV, elseV]
+        where condV := <freevars> cond;
+              thenV := <freevars> then;
+              elseV := <freevars> else
+    freevars: Abs(x, t, e) -> eV
+        where e'V  := <freevars> e;
+              eV   := <filter(not(?x))> e'V
+    freevars: Fix(x, t, e) -> eV
+          where e'V := <freevars> e;
+                eV  := <filter(not(?x))> e'V
+    freevars: Let(x, t, e, e') -> <freevars> App(Abs(x, t, e'), e)
+    freevars: App(e1, e2) -> <concat> [e1V, e2V]
+        where e1V := <freevars> e1;
+              e2V := <freevars> e2
+    freevars = debug(!"freevars: "); fail
