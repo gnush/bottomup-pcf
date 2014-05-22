@@ -53,28 +53,28 @@ rules
 	freevars: False() -> []
 	freevars: Var(x) -> [x]
 	freevars: Not(e) -> <freevars> e
-	freevars: And(lhs, rhs) -> <concat> [lhs*, rhs*]
-		where lhs* := [<freevars> lhs];
-			 rhs* := [<freevars> rhs]
+	freevars: And(lhs, rhs) -> <concat> [lhsV, rhsV]
+		where lhsV := <freevars> lhs;
+			  rhsV := <freevars> rhs
 	freevars: Num(_) -> []
-	freevars: Add(lhs, rhs) -> <concat> [lhs*, rhs*]
-		where lhs* := [<freevars> lhs];
-			 rhs* := [<freevars> rhs]
-	freevars: Gt(lhs, rhs) -> <concat> [lhs*, rhs*]
-		where lhs* := [<freevars> lhs];
-			 rhs* := [<freevars> rhs]
-	freevars: Cond(cond, then, else) -> <concat> [cond*, then*, else*]
-		where cond* := <freevars> cond;
-			 then* := <freevars> then;
-			 else* := <freevars> else
-	freevars: Abs(x, t, e) -> e*
-		where e'*  := <freevars> e;
-			  e*   := <filter(not(?x))> e'*
-	freevars: Fix(x, t, e) -> e*
-	   where e'* := <freevars> e;
-	         e*  := <filter(not(?x))> e'*
+	freevars: Add(lhs, rhs) -> <concat> [lhsV, rhsV]
+		where lhsV := <freevars> lhs;
+			  rhsV := <freevars> rhs
+	freevars: Gt(lhs, rhs) -> <concat> [lhsV, rhsV]
+		where lhsV := <freevars> lhs;
+			  rhsV := <freevars> rhs
+	freevars: Cond(cond, then, else) -> <concat> [condV, thenV, elseV]
+		where condV := <freevars> cond;
+			  thenV := <freevars> then;
+			  elseV := <freevars> else
+	freevars: Abs(x, t, e) -> eV
+		where e'V  := <freevars> e;
+			  eV   := <filter(not(?x))> e'V
+	freevars: Fix(x, t, e) -> eV
+	   where e'V := <freevars> e;
+	         eV  := <filter(not(?x))> e'V
 	freevars: Let(x, t, e, e') -> <freevars> App(Abs(x, t, e'), e)
-	freevars: App(e1, e2) -> <concat> [e1*, e2*]
-		where e1* := [<freevars> e1];
-			 e2* := [<freevars> e2]
+	freevars: App(e1, e2) -> <concat> [e1V, e2V]
+		where e1V := <freevars> e1;
+			  e2V := <freevars> e2
 	freevars: e -> <debug(!"freevars: ")>

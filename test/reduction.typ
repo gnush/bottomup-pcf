@@ -25,20 +25,6 @@ True and False,
 (\x: Bool. \y: Bool. x and y) True False,
 (\x: Bool. \x: Bool. x) True,
 if ~True then 1 else 2,
-(\g:Bool. (\x:Bool. g (x x)) (\x:Bool. g (x x))) (\sum:Bool.
-  (\n: Num. (if 1>n
-               then 0
-               else n+(sum (-1+n))
-             )
-  )
-) 10,
-(\g:Bool. (\x:Bool. g (x x)) (\x:Bool. g (x x))) (\fib:Bool.
-  (\n: Num. (if 3>n
-               then 1
-               else (fib (-1+n)) + (fib (-2+n))
-             )
-  )
-) 5,
 (fix f: Num -> Num. \n: Num. (if 1>n then 0 else n+(f (-1+n)))) 10,
 f: Num -> Num = (\n: Num. n); f 2,
 sum: Num -> Num = fix f: Num -> Num. \n: Num. (if 1>n then 0 else n+(f (-1+n))); sum 10,
@@ -50,6 +36,22 @@ b : Bool = ~False and True;
     else 0),
 
 
+(\g:Bool. (\x:Bool. (g (x x))) (\x:Bool. (g (x x)))) (\sum:Bool.
+  (\n: Num. (if 1>n
+               then 0
+               else n+(sum (-1+n))
+             )
+  )
+) 10,
+(\g:Bool. (\x:Bool. (g (x x))) (\x:Bool. (g (x x)))) (\fib:Bool.
+  (\n: Num. (if 3>n
+               then 1
+               else (fib (-1+n)) + (fib (-2+n))
+             )
+  )
+) 5,
+
+
 x,
 x and True,
 True and x,
@@ -59,4 +61,4 @@ x > True,
 True > 1,
 (\x: Bool. \y: Bool. x y) True False,
 if 1 then 1+1
-	 else True and False
+     else True and False
