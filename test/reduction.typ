@@ -42,6 +42,13 @@ if ~True then 1 else 2,
 (fix f: Num -> Num. \n: Num. (if 1>n then 0 else n+(f (-1+n)))) 10,
 f: Num -> Num = (\n: Num. n); f 2,
 sum: Num -> Num = fix f: Num -> Num. \n: Num. (if 1>n then 0 else n+(f (-1+n))); sum 10,
+n : Num = 5;
+sum : Num -> Num = fix f: Num -> Num. \n: Num. (if 1>n then 0 else n+(f (-1+n)));
+b : Bool = ~False and True;
+(if b
+    then sum n
+    else 0),
+
 
 x,
 x and True,
