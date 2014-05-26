@@ -68,7 +68,11 @@ rules
               c' := <nub> c
     generateConstraints: Abs(x, t, (t', c, b)) -> (Function(t, t'), <concat> [c, <isectConstraints> ([B(x, t)], b)], <filter(not(?(x, _)))> b)
     generateConstraints: Fix(x, t, (t', c, b)) -> (t, <concat> [c, <isectConstraints> ([B(x, t)], b)], <filter(not(?(x, _)))> b)
-    generateConstraints: Let(x, t, (t1, c1, b1), (t2, c2, b2)) -> (Bool(), [], [])
+    generateConstraints: Let(x, t, (t1, c1, b1), (t2, c2, b2)) -> (t2, c', b')
+        where b  := <bUnion> (b1, b2);
+              b' := <filter(not(?(x, _)))> b;
+              c  := <unions> [c1, c2, <isectConstraints> ([B(x, t)|b1], b2)];
+              c' := <nub> c 
 
     // (type, constraints) -> mgu
     solveConstraints: c -> mgu
