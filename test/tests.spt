@@ -1,0 +1,126 @@
+module tests
+
+language TypedLambda
+
+setup Common [[
+    module test
+]]
+
+test Parse varibale [[
+    x
+]] parse to Module("test", [Var("x")])
+
+test Parse function [[
+	(\x: Num. \f: Num -> Num. (f x)) 1 (\x: Num. x + 1)  
+]] parse succeeds
+
+test Normalization (1) [[
+	(\x: Num. \f: Num -> Num. (f x)) 1 (\x: Num. x + 1)
+]] run normalize to Module(_, [Num("2")])
+
+// test Normalizsation (Wellformed) [[
+//     
+// ]]
+
+test Normalization (Illformed) [[
+    x,
+    x and True,
+    True and x,
+    (\x: Bool. \y: Bool. x and y) y,
+    True False,
+    x > True,
+    True > 1,
+    (\x: Bool. \y: Bool. (x y)) True False,
+    if 1 then 1+1 else True and False
+]] run normalize to Module(_, [Var("x"),
+                               Var("x"),
+                               And(True(), Var("x")),
+                               Abs(_, Bool(), And(Var("y"), Var(_))), // FIXME: blaaah
+                               App(True(), False()),
+                               Gt(Var("x"), True()),
+                               Gt(True(), Num("1")),
+                               App(True(), False()),
+                               Cond(Num("1"), Add(Num("1"), Num("1")), And(True(), False()))
+                               ])
+
+test Normalization (Fixpoint Combinator 1) [[
+    [[(\g:Bool. (\x:Bool. ((g (x x))) (\x:Bool. (g (x x))))) (\sum:Bool.
+      (\n: Num. (if 1>n
+                   then 0
+                   else n+(sum (-1+n))
+                 )
+      )
+    ) 10]]
+]] run normalize to Module(_, [Num("55")])
+
+test Normalization (Fixpoint Combinator 2) [[
+    (\g:Bool. (\x:Bool. ((g (x x))) (\x:Bool. (g (x x))))) (\fib:Bool.
+	  (\n: Num. (if 3>n
+	               then 1
+	               else (fib (-1+n)) + (fib (-2+n))
+	             )
+	  )
+	) 5
+]] run normalize to Module(_, [Num("5")])
+
+test Typeinference (1) [[
+    [[(\x: Num. \f: Num -> Num. (f x)) 1 (\x: Num. x + 1)]]
+]] run type to TNum()
+
+test Typeinference (2) [[
+    [[if ((\b : Bool. True and ~b) False) then True else False]]
+]] run type to Bool()
+
+test Typeinference (Bool) [[
+	True,
+    ~True,
+    True and ~True and True,
+    ~~True
+]] run types to [Bool(), Bool(), Bool(), Bool()]
+
+test Typeinference (Num) [[
+	2,
+	12+13,
+	1+2+3+4+5
+]] run types to [TNum(), TNum(), TNum()]
+
+test Typeinference (Conditionals) [[
+	if True then 1 else 2,
+    if 1>2 then 1+1 else 1+2,
+    \b: Bool. (if b then False else True),
+    if 1>2 then \x:Num. x else \x:Num. x
+]] run types to [TNum(), TNum(), Function(Bool(), Bool()), Function(TNum(), TNum())]
+
+test Typeinference (Functions) [[
+	\x : Bool. x,
+    (\x : Bool. x) True,
+    \x : Bool -> Bool. x,
+    (\x : Bool -> Bool. x) (\x : Bool. x),
+    \x : Bool. True and x,
+    \x : Bool. \y : Bool. x and y,
+    (\x : Bool. \y : Bool. x and y) True True,
+    \f: Num -> Num. (f 1),
+    (\f: Num -> Num -> Num. (f 1 1)),
+    (\f: Num -> Num -> Num. (f 1 1)) (\n: Num. \m: Num. n+m)
+]] run types to [Function(Bool(), Bool()),
+                 Bool(),
+                 Function(Function(Bool(), Bool()), Function(Bool(), Bool())),
+                 Function(Bool(), Bool()),
+                 Function(Bool(), Bool()),
+                 Function(Bool(), Function(Bool(), Bool())),
+                 Bool(),
+                 Function(Function(TNum(), TNum()), TNum()),
+                 Function(Function(TNum(), Function(TNum(), TNum())), TNum()),
+                 TNum()]
+
+test Typeinference (Recursion and Let) [[
+	fix f: Num -> Num. \n: Num. (if 1>n then 0 else n+(f (-1+n))),
+	(fix f: Num -> Num. \n: Num. (if 1>n then 0 else n+(f (-1+n)))) 10,
+	f: Num -> Num -> Num = (\n: Num. \m: Num. n+m); f 2,
+	f: Bool -> Bool -> Bool = (\b1: Bool. \b2: Bool. b1 and b2); f True True, 
+	sum: Num -> Num = fix f: Num -> Num. \n: Num. (if 1>n then 0 else n+(f (-1+n))); (sum 10)
+]] run types to [Function(TNum(), TNum()),
+                 TNum(),
+                 Function(TNum(), TNum()),
+                 Bool(),
+                 TNum()]

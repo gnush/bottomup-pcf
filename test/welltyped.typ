@@ -24,4 +24,7 @@ fix f: Num -> Num. \n: Num. (if 1>n then 0 else n+(f (-1+n))),
 f: Num -> Num = (\n: Num. n); f 2,
 sum: Num -> Num = fix f: Num -> Num. \n: Num. (if 1>n then 0 else n+(f (-1+n))); (sum 10),
 \f: Num -> Num. (f 1),
-(\f: Num -> Num -> Num. (f 1 1)) (\n: Num. \m: Num. n+m)
+(\f: Num -> Num -> Num. (f 1 1)) (\n: Num. \m: Num. n+m),
+if ((\b : Bool. True and ~b) False)
+    then True
+    else False

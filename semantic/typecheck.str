@@ -25,6 +25,9 @@ rules
 
     types: Module(x, e*) -> <map(\ (_, _, _, _, t) -> t\)> t*
         where t* := <map(typeinfer)> e*
+    
+    type: e -> t
+        where (_, _, _, _, t) := <typeinfer> e
 
     typeinfer: Module(x, e*) -> t*
         where t* := <map(typeinfer)> e*
