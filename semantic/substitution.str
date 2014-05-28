@@ -48,6 +48,8 @@ rules
     subst: (x, Var(y), e) -> <if(equal(|x, y), !e, !Var(y))>
     subst = debug(!"subst: "); fail
 
+    freevars: Module(x, es) -> <map(freevars)> es
+
     // returns the free vars of an expr as a list 
     freevars: True() -> []
     freevars: False() -> []
