@@ -18,9 +18,18 @@ test Normalization (1) [[
 	(\x: Num. \f: Num -> Num. (f x)) 1 (\x: Num. x + 1)
 ]] run normalize to Module(_, [Num("2")])
 
-// test Normalizsation (Wellformed) [[
-//     
-// ]]
+test Normalizsation (Recursion) [[
+    (fix f: Num -> Num. \n: Num. (if 1>n then 0 else n+(f (-1+n)))) 10,
+    sum: Num -> Num = fix f: Num -> Num. \n: Num. (if 1>n then 0 else n+(f (-1+n))); sum 10,
+    n : Num = 5;
+    sum : Num -> Num = fix f: Num -> Num. \n: Num. (if 1>n then 0 else n+(f (-1+n)));
+    b : Bool = ~False and True;
+    (if b
+        then sum n
+        else 0)
+]] run normalize to Module(_, [Num("55"),
+                               Num("55"),
+                               Num("15")])
 
 test Normalization (Illformed) [[
     x,
