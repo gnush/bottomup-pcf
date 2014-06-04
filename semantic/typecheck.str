@@ -74,7 +74,7 @@ rules
     generateConstraints: Let(x, t, (t1, c1, b1), (t2, c2, b2)) -> (t2, c', b')
         where b  := <bUnion> (b1, b2);
               b' := <filter(not(?(x, _)))> b;
-              c  := <unions> [c1, c2, <isectConstraints> ([B(x, t)|b1], b2)];
+              c  := <unions> [c1, c2, [CEq(t, t1)], <isectConstraints> ([B(x, t)|b1], b2)];
               c' := <nub> c 
 
     // (type, constraints) -> mgu
