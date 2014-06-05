@@ -13,8 +13,8 @@ menus
     action: "Show abstract syntax" = debug-show-aterm (openeditor) (realtime) (meta) (source)
     action: "Show analyzed syntax" = debug-show-analyzed (openeditor) (meta)
     
-  menu: "Analysis"
-    
+  menu: "A.nalysis"
+    action: "Types" = types (openeditor)(realtime) 
     action: "Reset and reanalyze"  = debug-reanalyze (meta)   
 
     submenu: "Show analysis"

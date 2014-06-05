@@ -11,6 +11,8 @@ signature constructors
 	B : ID * TYPE -> Binding
 	
 rules
+    main = io-wrap(types)
+    
     foldtest: e -> <foldr(!0, \ (x, xs) -> <add> (x, xs) \)> [1, 2, 3]
     
     // applies an mgu to a type
