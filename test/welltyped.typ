@@ -1,5 +1,6 @@
 module welltyped
 
+~1,
 True,
 ~True,
 True and False,
