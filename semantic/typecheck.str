@@ -110,6 +110,20 @@ rules
 
     unify: ([], mgu) -> ([], mgu)
     unify = debug(!"unify"); fail
+    
+    //
+    unify1: ([CEq(t, t)|cs], mgu) -> <unify1> (cs, mgu)
+    unify1: ([CEq(Function(t1, t1'), Function(t2, t2'))|cs], mgu) -> <unify1> (cs', mgu)
+        where cs' := <concat> [[CEq(t1, t2), CEq(t1', t2')], cs]
+    // clash checks
+    // fail
+    unify1: ([CEq(t, TVar(x))|cs], mgu) -> <unify1> ([CEq(TVar(x), t)|cs], mgu)
+    unify1: ([CEq(TVar(x), t)|cs], mgu) -> <if <occurs> (x, t)
+                                            then ![CEq(TVar(x), t)|cs] // x occurs in t  fail or not so bad?
+                                            else <unify1> (cs', mgu') end> // variable elimination
+        where cs'  := <map(\ CEq(t1, t2) -> CEq(<tSubst> (x, t1, t), <tSubst> (x, t2, t)) \)> cs; //map subst over cs
+              mgu1 := <map(\ (y, t1) -> (y, <tSubst> (x, t1, t)) \)> mgu; //map subst over mgu
+              mgu' := [(x, t)|mgu1]
 	
     // if var occurs in term true, else false 
     occurs: (var, Bool())          -> <fail>
