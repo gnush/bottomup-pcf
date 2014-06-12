@@ -23,7 +23,7 @@ rules
     app_mgu = debug(!"app_mgu: "); fail
 
     bu: Module(x, e*) -> <map(bu)> e*
-    bu = bottomup(try(repeat(generateConstraints)))
+    bu = bottomup(try(generateConstraints))
 
     types: Module(x, e*) -> <map(\ (_, _, _, _, t) -> t\)> t*
         where t* := <map(typeinfer)> e*
@@ -40,6 +40,57 @@ rules
 
     gen = bottomup(try(generateConstraints))
 
+    // top down typecheck for reference
+    topType: e -> <typecheck> (e, [])
+    
+    testtt: e -> <typecheck> (And(Var("x"),Var("y")),[("y",Bool()),("x",Bool())])
+    testttt: e -> <typecheck> (Var("x"), ["x", Bool()])
+    
+    typecheck: Module(x, e*) -> <map(\ e -> <typecheck> (e, []) \)> e*
+    typecheck: (True(), ctx) -> Bool()
+    typecheck: (False(), ctx) -> Bool()
+    typecheck: (Not(e), ctx) -> <if equal(|Bool(), t)
+                                    then Bool()
+                                    else <concat-strings> ["Not: argument must be of type bool but was", t] end>
+        where t := <typecheck> (e, ctx)
+    typecheck: (And(e1, e2), ctx) -> <if and(equal(|t1, t2), equal(|t1, Bool()))
+                                        then Bool()
+                                        else !"And: argument types must be bool but was " end>
+        where t1 := <typecheck> (e1, ctx);
+              t2 := <typecheck> (e2, ctx)
+    typecheck: (Num(_), ctx) -> TNum()
+    typecheck: (Add(e1, e2), ctx) -> <if and(equal(|t1, t2), equal(|t1, TNum()))
+                                        then TNum()
+                                        else <concat-strings> ["Add: argument types must be num but was", t1, t2] end>
+        where t1 := <typecheck> (e1, ctx);
+              t2 := <typecheck> (e2, ctx)
+    typecheck: (Gt(e1, e2), ctx) -> <if and(equal(|t1, t2), equal(|t1, TNum()))
+                                        then Bool()
+                                        else <concat-strings> ["Gt: argument types must be num but was ", t1, t2] end>
+        where t1 := <typecheck> (e1, ctx);
+              t2 := <typecheck> (e2, ctx)
+    typecheck: (Cond(cond, then, else), ctx) -> <if equal(|tCond, Bool())
+                                                    then if equal(|tThen, tElse)
+                                                            then !tThen
+                                                            else <concat-strings> ["types of then and else branch do not match: ", tThen, tElse]
+                                                                end
+                                                    else <concat-strings> ["type of condition must be bool but was", tCond] end>
+        where tCond := <typecheck> (cond, ctx);
+              tThen := <typecheck> (then, ctx);
+              tElse := <typecheck> (else, ctx)
+    typecheck: (Var(x), ctx) -> "foo" //<typecheck> (And(Var("x"),Var("y")),[("y",Bool()),("x",Bool())])
+    typecheck: (Abs(x, tParam, e), ctx) -> Function(tParam, tRet)
+        where tRet := <typecheck> (e, [(x, tParam)|ctx])
+    typecheck: (App(e1, e2), ctx) -> <if equal(|t1, t3) then !t2 else fail end>
+        where Function(t1, t2) := <typecheck> (e1, ctx);
+              t3 := <typecheck> (e2, ctx)
+    typecheck: (Fix(f, t, e), ctx) -> t
+        where t1 := <typecheck> (e, [(f, t)|ctx])
+    typecheck: (Let(x, t, e1, e2), ctx) -> <if equal(|t, t1) then !t2 else fail end>
+        where t1 := <typecheck> (e1, ctx);
+              t2 := <typecheck> (e2, [(x, t)|ctx])
+    typecheck = debug(!"typecheck: "); fail
+        
     generateConstraints: True() -> (Bool(), [], [])
     generateConstraints: False() -> (Bool(), [], [])
     generateConstraints: Num(_) -> (TNum(), [], [])
