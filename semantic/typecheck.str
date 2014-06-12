@@ -41,55 +41,91 @@ rules
     gen = bottomup(try(generateConstraints))
 
     // top down typecheck for reference
-    topType: e -> <typecheck> (e, [])
+    // topType: Module(x, e*) -> <map(topType)> e*
+    // topType: e -> <typecheck> (e, [])
+    // 
+    // testtt: e -> <typecheck> (And(Var("x"),Var("y")),[("y",Bool()),("x",Bool())])
+    // testttt: e -> <typecheck> (Var("x"), ["x", Bool()])
     
-    testtt: e -> <typecheck> (And(Var("x"),Var("y")),[("y",Bool()),("x",Bool())])
-    testttt: e -> <typecheck> (Var("x"), ["x", Bool()])
+    tCheck: Module(x, e*) -> <map(tCheck)> e*
+    tCheck: e -> <check> (e, [])
     
-    typecheck: Module(x, e*) -> <map(\ e -> <typecheck> (e, []) \)> e*
-    typecheck: (True(), ctx) -> Bool()
-    typecheck: (False(), ctx) -> Bool()
-    typecheck: (Not(e), ctx) -> <if equal(|Bool(), t)
-                                    then Bool()
-                                    else <concat-strings> ["Not: argument must be of type bool but was", t] end>
-        where t := <typecheck> (e, ctx)
-    typecheck: (And(e1, e2), ctx) -> <if and(equal(|t1, t2), equal(|t1, Bool()))
-                                        then Bool()
-                                        else !"And: argument types must be bool but was " end>
-        where t1 := <typecheck> (e1, ctx);
-              t2 := <typecheck> (e2, ctx)
-    typecheck: (Num(_), ctx) -> TNum()
-    typecheck: (Add(e1, e2), ctx) -> <if and(equal(|t1, t2), equal(|t1, TNum()))
-                                        then TNum()
-                                        else <concat-strings> ["Add: argument types must be num but was", t1, t2] end>
-        where t1 := <typecheck> (e1, ctx);
-              t2 := <typecheck> (e2, ctx)
-    typecheck: (Gt(e1, e2), ctx) -> <if and(equal(|t1, t2), equal(|t1, TNum()))
-                                        then Bool()
-                                        else <concat-strings> ["Gt: argument types must be num but was ", t1, t2] end>
-        where t1 := <typecheck> (e1, ctx);
-              t2 := <typecheck> (e2, ctx)
-    typecheck: (Cond(cond, then, else), ctx) -> <if equal(|tCond, Bool())
-                                                    then if equal(|tThen, tElse)
-                                                            then !tThen
-                                                            else <concat-strings> ["types of then and else branch do not match: ", tThen, tElse]
-                                                                end
-                                                    else <concat-strings> ["type of condition must be bool but was", tCond] end>
-        where tCond := <typecheck> (cond, ctx);
-              tThen := <typecheck> (then, ctx);
-              tElse := <typecheck> (else, ctx)
-    typecheck: (Var(x), ctx) -> "foo" //<typecheck> (And(Var("x"),Var("y")),[("y",Bool()),("x",Bool())])
-    typecheck: (Abs(x, tParam, e), ctx) -> Function(tParam, tRet)
-        where tRet := <typecheck> (e, [(x, tParam)|ctx])
-    typecheck: (App(e1, e2), ctx) -> <if equal(|t1, t3) then !t2 else fail end>
-        where Function(t1, t2) := <typecheck> (e1, ctx);
-              t3 := <typecheck> (e2, ctx)
-    typecheck: (Fix(f, t, e), ctx) -> t
-        where t1 := <typecheck> (e, [(f, t)|ctx])
-    typecheck: (Let(x, t, e1, e2), ctx) -> <if equal(|t, t1) then !t2 else fail end>
-        where t1 := <typecheck> (e1, ctx);
-              t2 := <typecheck> (e2, [(x, t)|ctx])
-    typecheck = debug(!"typecheck: "); fail
+    check: (True(), ctx)      -> Bool()
+    check: (False(), ctx)     -> Bool()
+    check: (Not(e), ctx)      -> <if equal(|t, Bool()) then !Bool() else fail end>
+        with t := <check> (e, ctx)
+    check: (And(e1, e2), ctx) -> <if and(equal(|t1, Bool()), equal(|t2, Bool())) then !Bool() else fail end>
+        with t1 := <check> (e1, ctx);
+             t2 := <check> (e2, ctx)
+             
+    check: (Num(_), ctx)      -> TNum()
+    check: (Add(e1, e2), ctx) -> <if and(equal(|t1, TNum()), equal(|t2, TNum())) then !TNum() else fail end>
+        with t1 := <check> (e1, ctx);
+             t2 := <check> (e2, ctx)
+    check: (Gt(e1, e2), ctx)  -> <if and(equal(|t1, TNum()), equal(|t2, TNum())) then !Bool() else fail end>
+        with t1 := <check> (e1, ctx);
+             t2 := <check> (e2, ctx)
+
+    check: (Cond(cond, then, else), ctx) -> <if and(equal(|tCond, Bool()), equal(|tThen, tElse)) then !tThen else fail end> 
+        with tCond := <check> (cond, ctx);
+             tThen := <check> (then, ctx);
+             tElse := <check> (else, ctx)
+
+    check: (Var(x), ctx)       -> <lookup> (x, ctx)
+    check: (Abs(x, t, e), ctx) -> Function(t, t')
+        with t' := <check> (e, [(x, t)|ctx])
+    check: (App(e1, e2), ctx)  -> <if equal(|t1, t3) then !t2 else fail end>
+        with Function(t1, t2) := <check> (e1, ctx);
+             t3               := <check> (e2, ctx)
+    check: (Fix(x, t, e), ctx) -> t
+        with t1 := <check> (e, [(x,t)|ctx])
+    check: (Let(x, t, e1, e2), ctx) -> <if equal(|t, t1) then !t2 else fail end>
+        with t1 := <check> (e1, ctx);
+             t2 := <check> (e2, [(x,t)|ctx])
+    
+    // typecheck: (True(), ctx) -> Bool()
+    // typecheck: (False(), ctx) -> Bool()
+    // typecheck: (Not(e), ctx) -> <if equal(|Bool(), t)
+    //                                 then !Bool()
+    //                                 else "Not: argument must be of type bool but was" end>
+    //     where t := <typecheck> (e, ctx)
+    // typecheck: (And(e1, e2), ctx) -> <if and(equal(|t1, t2), equal(|t1, Bool()))
+    //                                     then !Bool()
+    //                                     else !"And: argument types must be bool but was " end>
+    //     where t1 := <typecheck> (e1, ctx);
+    //           t2 := <typecheck> (e2, ctx)
+    // typecheck: (Num(_), ctx) -> TNum()
+    // typecheck: (Add(e1, e2), ctx) -> <if and(equal(|t1, t2), equal(|t1, TNum()))
+    //                                     then !TNum()
+    //                                     else <concat-strings> ["Add: argument types must be num but was", t1, t2] end>
+    //     where t1 := <typecheck> (e1, ctx);
+    //           t2 := <typecheck> (e2, ctx)
+    // typecheck: (Gt(e1, e2), ctx) -> <if and(equal(|t1, t2), equal(|t1, TNum()))
+    //                                     then !Bool()
+    //                                     else <concat-strings> ["Gt: argument types must be num but was ", t1, t2] end>
+    //     where t1 := <typecheck> (e1, ctx);
+    //           t2 := <typecheck> (e2, ctx)
+    // typecheck: (Cond(cond, then, else), ctx) -> <if equal(|tCond, Bool())
+    //                                                 then if equal(|tThen, tElse)
+    //                                                         then !tThen
+    //                                                         else <concat-strings> ["types of then and else branch do not match: ", tThen, tElse]
+    //                                                             end
+    //                                                 else <concat-strings> ["type of condition must be bool but was", tCond] end>
+    //     where tCond := <typecheck> (cond, ctx);
+    //           tThen := <typecheck> (then, ctx);
+    //           tElse := <typecheck> (else, ctx)
+    // typecheck: (Var(x), ctx) -> "foo" //<typecheck> (And(Var("x"),Var("y")),[("y",Bool()),("x",Bool())])
+    // typecheck: (Abs(x, tParam, e), ctx) -> Function(tParam, tRet)
+    //     where tRet := <typecheck> (e, [(x, tParam)|ctx])
+    // typecheck: (App(e1, e2), ctx) -> <if equal(|t1, t3) then !t2 else fail end>
+    //     where Function(t1, t2) := <typecheck> (e1, ctx);
+    //           t3 := <typecheck> (e2, ctx)
+    // typecheck: (Fix(f, t, e), ctx) -> t
+    //     where t1 := <typecheck> (e, [(f, t)|ctx])
+    // typecheck: (Let(x, t, e1, e2), ctx) -> <if equal(|t, t1) then !t2 else fail end>
+    //     where t1 := <typecheck> (e1, ctx);
+    //           t2 := <typecheck> (e2, [(x, t)|ctx])
+    // typecheck = debug(!"typecheck: "); fail
         
     generateConstraints: True() -> (Bool(), [], [])
     generateConstraints: False() -> (Bool(), [], [])
@@ -163,18 +199,18 @@ rules
     unify = debug(!"unify"); fail
     
     //
-    unify1: ([CEq(t, t)|cs], mgu) -> <unify1> (cs, mgu)
-    unify1: ([CEq(Function(t1, t1'), Function(t2, t2'))|cs], mgu) -> <unify1> (cs', mgu)
-        where cs' := <concat> [[CEq(t1, t2), CEq(t1', t2')], cs]
-    // clash checks
-    // fail
-    unify1: ([CEq(t, TVar(x))|cs], mgu) -> <unify1> ([CEq(TVar(x), t)|cs], mgu)
-    unify1: ([CEq(TVar(x), t)|cs], mgu) -> <if <occurs> (x, t)
-                                            then ![CEq(TVar(x), t)|cs] // x occurs in t  fail or not so bad?
-                                            else <unify1> (cs', mgu') end> // variable elimination
-        where cs'  := <map(\ CEq(t1, t2) -> CEq(<tSubst> (x, t1, t), <tSubst> (x, t2, t)) \)> cs; //map subst over cs
-              mgu1 := <map(\ (y, t1) -> (y, <tSubst> (x, t1, t)) \)> mgu; //map subst over mgu
-              mgu' := [(x, t)|mgu1]
+//     unify1: ([CEq(t, t)|cs], mgu) -> <unify1> (cs, mgu)
+//     unify1: ([CEq(Function(t1, t1'), Function(t2, t2'))|cs], mgu) -> <unify1> (cs', mgu)
+//         where cs' := <concat> [[CEq(t1, t2), CEq(t1', t2')], cs]
+//     // clash checks
+//     // fail
+//     unify1: ([CEq(t, TVar(x))|cs], mgu) -> <unify1> ([CEq(TVar(x), t)|cs], mgu)
+//     unify1: ([CEq(TVar(x), t)|cs], mgu) -> <if <occurs> (x, t)
+//                                             then ![CEq(TVar(x), t)|cs] // x occurs in t  fail or not so bad?
+//                                             else <unify1> (cs', mgu') end> // variable elimination
+//         where cs'  := <map(\ CEq(t1, t2) -> CEq(<tSubst> (x, t1, t), <tSubst> (x, t2, t)) \)> cs; //map subst over cs
+//               mgu1 := <map(\ (y, t1) -> (y, <tSubst> (x, t1, t)) \)> mgu; //map subst over mgu
+//               mgu' := [(x, t)|mgu1]
 	
     // if var occurs in term true, else false 
     occurs: (var, Bool())          -> <fail>

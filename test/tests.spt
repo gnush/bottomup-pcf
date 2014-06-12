@@ -133,3 +133,57 @@ test Typeinference (Recursion and Let) [[
                  Function(TNum(), TNum()),
                  Bool(),
                  TNum()]
+                 
+test Topdown (Bool) [[
+    True,
+    ~True,
+    True and ~True and True,
+    ~~True
+]] run tCheck to [Bool(), Bool(), Bool(), Bool()]
+
+test Topdown (Num) [[
+    2,
+    12+13,
+    1+2+3+4+5
+]] run tCheck to [TNum(), TNum(), TNum()]
+
+test Topdown (Conditionals) [[
+    if True then 1 else 2,
+    if 1>2 then 1+1 else 1+2,
+    \b: Bool. (if b then False else True),
+    if 1>2 then \x:Num. x else \x:Num. x
+]] run tCheck to [TNum(), TNum(), Function(Bool(), Bool()), Function(TNum(), TNum())]
+
+test Topdown (Functions) [[
+    \x : Bool. x,
+    (\x : Bool. x) True,
+    \x : Bool -> Bool. x,
+    (\x : Bool -> Bool. x) (\x : Bool. x),
+    \x : Bool. True and x,
+    \x : Bool. \y : Bool. x and y,
+    (\x : Bool. \y : Bool. x and y) True True,
+    \f: Num -> Num. (f 1),
+    (\f: Num -> Num -> Num. (f 1 1)),
+    (\f: Num -> Num -> Num. (f 1 1)) (\n: Num. \m: Num. n+m)
+]] run tCheck to [Function(Bool(), Bool()),
+                 Bool(),
+                 Function(Function(Bool(), Bool()), Function(Bool(), Bool())),
+                 Function(Bool(), Bool()),
+                 Function(Bool(), Bool()),
+                 Function(Bool(), Function(Bool(), Bool())),
+                 Bool(),
+                 Function(Function(TNum(), TNum()), TNum()),
+                 Function(Function(TNum(), Function(TNum(), TNum())), TNum()),
+                 TNum()]
+
+test Topdown (Recursion and Let) [[
+    fix f: Num -> Num. \n: Num. (if 1>n then 0 else n+(f (-1+n))),
+    (fix f: Num -> Num. \n: Num. (if 1>n then 0 else n+(f (-1+n)))) 10,
+    f: Num -> Num -> Num = (\n: Num. \m: Num. n+m); f 2,
+    f: Bool -> Bool -> Bool = (\b1: Bool. \b2: Bool. b1 and b2); f True True, 
+    sum: Num -> Num = fix f: Num -> Num. \n: Num. (if 1>n then 0 else n+(f (-1+n))); (sum 10)
+]] run tCheck to [Function(TNum(), TNum()),
+                 TNum(),
+                 Function(TNum(), TNum()),
+                 Bool(),
+                 TNum()]
