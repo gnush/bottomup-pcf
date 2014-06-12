@@ -87,7 +87,7 @@ rules
     // typecheck: (False(), ctx) -> Bool()
     // typecheck: (Not(e), ctx) -> <if equal(|Bool(), t)
     //                                 then !Bool()
-    //                                 else "Not: argument must be of type bool but was" end>
+    //                                 else !"Not: argument must be of type bool but was" end>
     //     where t := <typecheck> (e, ctx)
     // typecheck: (And(e1, e2), ctx) -> <if and(equal(|t1, t2), equal(|t1, Bool()))
     //                                     then !Bool()
