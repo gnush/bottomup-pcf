@@ -2,7 +2,6 @@ module typecheck
 
 imports
 	include/TypedLambda
-	trans/util
 
 signature constructors
 	CEq : Type * Type -> Constraint

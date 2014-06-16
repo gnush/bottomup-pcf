@@ -2,7 +2,7 @@ module TypedLambda-Views
 
 views
   
-  outline view: outline
+  outline view: editor-outline (source)
     expand to level: 3
     
-	properties view: editor-properties
+  properties view: editor-properties

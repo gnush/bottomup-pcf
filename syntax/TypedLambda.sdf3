@@ -1,8 +1,8 @@
 module TypedLambda
 
 imports
-	
-	Common
+    
+    Common
 
 context-free start-symbols
   
@@ -45,19 +45,19 @@ templates
 context-free priorities
 
   {
-  	Expr.Var
+    Expr.Var
   } > {
-  	Expr.Not
+    Expr.Not
   } > {
-  	Expr.And
-  	Expr.Add
-  	Expr.Gt
+    Expr.And
+    Expr.Add
+    Expr.Gt
   } > {
-  	Expr.Abs
-  	Expr.Fix
-  	Expr.Let
+    Expr.Abs
+    Expr.Fix
+    Expr.Let
   } > {
     Expr.App
   } > {
-  	Expr.Cond
+    Expr.Cond
   }
