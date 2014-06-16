@@ -14,7 +14,6 @@ menus
     action: "Show analyzed syntax" = debug-show-analyzed (openeditor) (meta)
     
   menu: "Analysis"
-    action: "Types" = types (openeditor)(realtime) 
     action: "Reset and reanalyze"  = debug-reanalyze (meta)   
 
     submenu: "Show analysis"

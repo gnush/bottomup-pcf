@@ -1,0 +1,65 @@
+module topdown
+
+imports
+    include/TypedLambda
+
+rules
+	main = io-wrap(tCheck)
+
+    tCheck: Module(x, e*) -> <map(tCheck)> e*
+    tCheck: e -> <check> (e, [])
+    
+    check: (True(), ctx)      -> Bool()
+    check: (False(), ctx)     -> Bool()
+    check: (Not(e), ctx)      -> <if equal(|t, Bool())
+                                    then !Bool()
+                                    else <conc-strings> ("Not expects Bool as argument type but got ", <write-to-string> t) end>
+        with t := <check> (e, ctx)
+    check: (And(e1, e2), ctx) -> <if and(equal(|t1, Bool()), equal(|t2, Bool()))
+                                    then !Bool()
+                                    else <concat-strings> ["And expects Bool as argument types but got ", <write-to-string> t1, " and ", <write-to-string> t2] end>
+        with t1 := <check> (e1, ctx);
+             t2 := <check> (e2, ctx)
+             
+    check: (Num(_), ctx)      -> TNum()
+    check: (Add(e1, e2), ctx) -> <if and(equal(|t1, TNum()), equal(|t2, TNum()))
+                                    then !TNum()
+                                    else <concat-strings> ["Add expects Num as argument types but got ", <write-to-string> t1, " and ", <write-to-string> t2] end>
+        with t1 := <check> (e1, ctx);
+             t2 := <check> (e2, ctx)
+    check: (Gt(e1, e2), ctx)  -> <if and(equal(|t1, TNum()), equal(|t2, TNum()))
+                                    then !Bool()
+                                    else <concat-strings> ["Gt expects Num as argument types but got ", <write-to-string> t1, " and ", <write-to-string> t2] end>
+        with t1 := <check> (e1, ctx);
+             t2 := <check> (e2, ctx)
+
+    check: (Cond(cond, then, else), ctx) -> <if equal(|tCond, Bool())
+                                               then if equal(|tThen, tElse)
+                                                      then !tThen
+                                                      else <concat-strings> ["Type of Branches must match but got ", <write-to-string> tThen, " and ", <write-to-string> tElse] end
+                                               else <conc-strings> ("Conditional type must be Bool but was ", <write-to-string> tCond) end> 
+        with tCond := <check> (cond, ctx);
+             tThen := <check> (then, ctx);
+             tElse := <check> (else, ctx)
+    // check: (Cond(cond, then, else), ctx) -> <if and(equal(|tCond, Bool()), equal(|tThen, tElse)) then !tThen else fail end> 
+    //     with tCond := <check> (cond, ctx);
+    //          tThen := <check> (then, ctx);
+    //          tElse := <check> (else, ctx)
+
+    check: (Var(x), ctx)       -> <if <elem(?(x, _))> ctx
+                                    then <lookup> (x, ctx)
+                                    else <conc-strings> (x, " unbound") end>
+    check: (Abs(x, t, e), ctx) -> Function(t, t')
+        with t' := <check> (e, [(x, t)|ctx])
+    check: (App(e1, e2), ctx)  -> <if equal(|t1, t3)
+                                    then !t2
+                                    else <concat-strings> ["Argument type must match Function type but got ", <write-to-string> Function(t1, t2), " and ", <write-to-string> t3] end>
+        with Function(t1, t2) := <check> (e1, ctx);
+             t3               := <check> (e2, ctx)
+    check: (Fix(x, t, e), ctx) -> t
+        with t1 := <check> (e, [(x,t)|ctx])
+    check: (Let(x, t, e1, e2), ctx) -> <if equal(|t, t1)
+                                            then !t2
+                                            else <concat-strings> ["Annotated type matches not actual type, got ", <write-to-string> t, " and ", <write-to-string> t1] end>
+        with t1 := <check> (e1, ctx);
+             t2 := <check> (e2, [(x,t)|ctx])
