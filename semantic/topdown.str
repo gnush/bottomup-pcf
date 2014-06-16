@@ -46,9 +46,7 @@ rules
     //          tThen := <check> (then, ctx);
     //          tElse := <check> (else, ctx)
 
-    check: (Var(x), ctx)       -> <if <elem(?(x, _))> ctx
-                                    then <lookup> (x, ctx)
-                                    else <conc-strings> (x, " unbound") end>
+    check: (Var(x), ctx)       -> <lookup> (x, ctx) // <+ <conc-strings> (x, " unbound")
     check: (Abs(x, t, e), ctx) -> Function(t, t')
         with t' := <check> (e, [(x, t)|ctx])
     check: (App(e1, e2), ctx)  -> <if equal(|t1, t3)
