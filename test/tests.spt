@@ -97,8 +97,12 @@ test Typeinference (Conditionals) [[
 	if True then 1 else 2,
     if 1>2 then 1+1 else 1+2,
     \b: Bool. (if b then False else True),
-    if 1>2 then \x:Num. x else \x:Num. x
-]] run types to [TNum(), TNum(), Function(Bool(), Bool()), Function(TNum(), TNum())]
+    if 1>2 then \x:Num. x else \x:Num. x,
+    \x: Num. (if x>1 then x else x),
+    \x: Num. (if x>1 then 1 else x),
+    \x: Num. (if x>1 then x else 1),
+    \x: Num. (if True then x else x)
+]] run types to [TNum(), TNum(), Function(Bool(), Bool()), Function(TNum(), TNum()), Function(TNum(), TNum()), Function(TNum(), TNum()), Function(TNum(), TNum()), Function(TNum(), TNum())]
 
 test Typeinference (Functions) [[
 	\x : Bool. x,
@@ -151,8 +155,12 @@ test Topdown (Conditionals) [[
     if True then 1 else 2,
     if 1>2 then 1+1 else 1+2,
     \b: Bool. (if b then False else True),
-    if 1>2 then \x:Num. x else \x:Num. x
-]] run tCheck to [TNum(), TNum(), Function(Bool(), Bool()), Function(TNum(), TNum())]
+    if 1>2 then \x:Num. x else \x:Num. x,
+    \x: Num. (if x>1 then x else x),
+    \x: Num. (if x>1 then 1 else x),
+    \x: Num. (if x>1 then x else 1),
+    \x: Num. (if True then x else x)
+]] run tCheck to [TNum(), TNum(), Function(Bool(), Bool()), Function(TNum(), TNum()), Function(TNum(), TNum()), Function(TNum(), TNum()), Function(TNum(), TNum()), Function(TNum(), TNum())]
 
 test Topdown (Functions) [[
     \x : Bool. x,

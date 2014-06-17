@@ -47,44 +47,68 @@ rules
 
     gen = bottomup(try(generateConstraints))
         
+ //    generateConstraints: True() -> (Bool(), [], [])
+ //    generateConstraints: False() -> (Bool(), [], [])
+ //    generateConstraints: Num(_) -> (TNum(), [], [])
+ //    generateConstraints: Not((t, c, b)) -> (Bool(), <nub> [CEq(t, Bool())|c], b)
+ //    generateConstraints: And((t1, c1, b1), (t2, c2, b2)) -> (Bool(), c', b)
+ //        where b     := <bUnion> (b1, b2); 
+ //              c     := <unions> [c1, c2, [CEq(Bool(), t1), CEq(Bool(), t2)], <isectConstraints> (b1, b2)];
+ //              c'    := <nub> c
+ //    generateConstraints: Add((t1, c1, b1), (t2, c2, b2)) -> (TNum(), c', b)
+ //        where b     := <bUnion> (b1, b2); 
+ //              c     := <unions> [c1, c2, [CEq(TNum(), t1), CEq(TNum(), t2)], <isectConstraints> (b1, b2)];
+ //              c'    := <nub> c
+ //    generateConstraints: Gt((t1, c1, b1), (t2, c2, b2)) -> (Bool(), c', b)
+	//     where b     := <bUnion> (b1, b2); 
+	//               c     := <unions> [c1, c2, [CEq(TNum(), t1), CEq(TNum(), t2)], <isectConstraints> (b1, b2)];
+	//               c'    := <nub> c
+	// generateConstraints: Cond((tCond, cCond, bCond),
+	//                           (tThen, cThen, bThen),
+	//                           (tElse, cElse, bElse)) -> (tThen, c', b)
+ //        where b  := <bUnion> (bCond, <bUnion> (bThen, bElse));
+ //              c  := <unions> [cCond, cThen, cElse
+ //                             ,[CEq(Bool(), tCond), CEq(tThen, tElse)]
+ //                             ,<isectConstraints> (bCond, bThen, bElse)];
+ //              c' := <nub> c
+ //    generateConstraints: Var(x) -> (ty, [], [B(x, ty)])
+ //        where ty := TVar(<newname> "T")
+ //    generateConstraints: App((t1, c1, b1), (t2, c2, b2)) -> (t, c', b)
+ //        where t  := TVar(<newname> "T");
+ //              b  := <bUnion> (<union> (b1, b2));
+ //              c  := <unions> [c1, c2, [CEq(t1, Function(t2, t))], <isectConstraints> (b1, b2)];
+ //              c' := <nub> c
+ //    generateConstraints: Abs(x, t, (t', c, b)) -> (Function(t, t'), <concat> [c, <isectConstraints> ([B(x, t)], b)], <filter(not(?(x, _)))> b)
+ //    generateConstraints: Fix(x, t, (t', c, b)) -> (t, <concat> [c, <isectConstraints> ([B(x, t)], b)], <filter(not(?(x, _)))> b)
+ //    generateConstraints: Let(x, t, (t1, c1, b1), (t2, c2, b2)) -> (t2, c', b')
+ //        where b  := <bUnion> (b1, b2);
+ //              b' := <filter(not(?(x, _)))> b;
+ //              c  := <unions> [c1, c2, [CEq(t, t1)], <isectConstraints> ([B(x, t)|b1], b2)];
+ //              c' := <nub> c
     generateConstraints: True() -> (Bool(), [], [])
     generateConstraints: False() -> (Bool(), [], [])
     generateConstraints: Num(_) -> (TNum(), [], [])
-    generateConstraints: Not((t, c, b)) -> (Bool(), <nub> [CEq(t, Bool())|c], b)
+    generateConstraints: Not((t, c, b)) -> (Bool(), [CEq(t, Bool())|c], b)
     generateConstraints: And((t1, c1, b1), (t2, c2, b2)) -> (Bool(), c', b)
-        where b     := <bUnion> (b1, b2); 
-              c     := <unions> [c1, c2, [CEq(Bool(), t1), CEq(Bool(), t2)], <isectConstraints> (b1, b2)];
-              c'    := <nub> c
+        where (b, c') := <merge> (b1, b2, <unions> [c1, c2, [CEq(Bool(), t1), CEq(Bool(), t2)]])
     generateConstraints: Add((t1, c1, b1), (t2, c2, b2)) -> (TNum(), c', b)
-        where b     := <bUnion> (b1, b2); 
-              c     := <unions> [c1, c2, [CEq(TNum(), t1), CEq(TNum(), t2)], <isectConstraints> (b1, b2)];
-              c'    := <nub> c
+        where (b, c') := <merge> (b1, b2, <unions> [c1, c2, [CEq(TNum(), t1), CEq(TNum(), t2)]]) 
     generateConstraints: Gt((t1, c1, b1), (t2, c2, b2)) -> (Bool(), c', b)
-	    where b     := <bUnion> (b1, b2); 
-	              c     := <unions> [c1, c2, [CEq(TNum(), t1), CEq(TNum(), t2)], <isectConstraints> (b1, b2)];
-	              c'    := <nub> c
-	generateConstraints: Cond((tCond, cCond, bCond),
-	                          (tThen, cThen, bThen),
-	                          (tElse, cElse, bElse)) -> (tThen, c', b)
-        where b  := <bUnion> (bCond, <bUnion> (bThen, bElse));
-              c  := <unions> [cCond, cThen, cElse
-                             ,[CEq(Bool(), tCond), CEq(tThen, tElse)]
-                             ,<isectConstraints> (bCond, bThen, bElse)];
-              c' := <nub> c
+        where (b, c') := <merge> (b1, b2, <unions> [c1, c2, [CEq(TNum(), t1), CEq(TNum(), t2)]]) 
+    generateConstraints: Cond((tCond, cCond, bCond),
+                              (tThen, cThen, bThen),
+                              (tElse, cElse, bElse)) -> (tThen, c', b)
+        where (b, c') := <merge> (bCond, bThen, bElse, <unions> [cCond, cThen, cElse
+                                                                ,[CEq(Bool(), tCond), CEq(tThen, tElse)]]) 
     generateConstraints: Var(x) -> (ty, [], [B(x, ty)])
         where ty := TVar(<newname> "T")
     generateConstraints: App((t1, c1, b1), (t2, c2, b2)) -> (t, c', b)
         where t  := TVar(<newname> "T");
-              b  := <bUnion> (<union> (b1, b2));
-              c  := <unions> [c1, c2, [CEq(t1, Function(t2, t))], <isectConstraints> (b1, b2)];
-              c' := <nub> c
-    generateConstraints: Abs(x, t, (t', c, b)) -> (Function(t, t'), <concat> [c, <isectConstraints> ([B(x, t)], b)], <filter(not(?(x, _)))> b)
-    generateConstraints: Fix(x, t, (t', c, b)) -> (t, <concat> [c, <isectConstraints> ([B(x, t)], b)], <filter(not(?(x, _)))> b)
+              (b, c') := <merge> (b1, b2, <unions> [c1, c2, [CEq(t1, Function(t2, t))]])
+    generateConstraints: Abs(x, t, (t', c, b)) -> (Function(t, t'), <union> (c, <isectConstraints> ([B(x, t)], b)), <filter(not(?(x, _)))> b)
+    generateConstraints: Fix(x, t, (t', c, b)) -> (t, <union> (c, <isectConstraints> ([B(x, t)], b)), <filter(not(?(x, _)))> b)
     generateConstraints: Let(x, t, (t1, c1, b1), (t2, c2, b2)) -> (t2, c', b')
-        where b  := <bUnion> (b1, b2);
-              b' := <filter(not(?(x, _)))> b;
-              c  := <unions> [c1, c2, [CEq(t, t1)], <isectConstraints> ([B(x, t)|b1], b2)];
-              c' := <nub> c 
+        where (b', c') := <merge'> (b1, b2, B(x, t), <unions> [c1, c2, [CEq(t, t1)]]) 
 
     // (type, constraints) -> mgu
     solveConstraints: c -> mgu
@@ -154,11 +178,18 @@ rules
 
     // union of bindings and intersection of constraints in bindings
     // (bs, bs) -> (cs, bs)
-//     merge: (bs1, bs2, bs3, cs) -> bs'
-//         where bs' := <bUnion> (bs1, <bUnion> (bs2, bs3));
-//               cs' := <unions> [cs, <isectConstraints> ()]  
-// 
-// <isectConstraints> (bCond, <isectConstraints> (bThen, bElse))
+    merge: (bs1, bs2, bs3, cs) -> (bs', cs')
+        where bs' := <bUnion> (bs1, <bUnion> (bs2, bs3));
+              cs' := <unions> [cs, <isectConstraints> (bs1, bs2, bs3)]
+    merge: (bs1, bs2, cs) -> (bs', cs')
+        where bs' := <bUnion> (bs1, bs2);
+              cs' := <union> (cs, <isectConstraints> (bs1, bs2))
+    merge': (bs1, bs2, b, cs) -> (bs', cs')
+        where bs  := <bUnion> (bs1, bs2);
+              bs' := <filter(not(?B(x, _)))> bs;
+              cs' := <union> (cs, <isectConstraints> ([b|bs1], bs2))
+    merge  = debug(!"merge: "); fail
+    merge' = debug(!"merge: "); fail
 
     //[B("x", "T1"), B("x", "T1123"), B("y", "T2"), B("y", "T1234")] -> [B("x", "T1"), B("y", "T2")]
     bUnion: (xs, ys) -> <bUnion> (<union> (xs, ys))	
