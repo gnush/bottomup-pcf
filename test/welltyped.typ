@@ -1,6 +1,8 @@
 module welltyped
 
 True,
+\x: Num. (if x>1 then x else x),
+True,
 ~True,
 True and False,
 True and ~False,

@@ -14,6 +14,14 @@ rules
     
     foldtest: e -> <foldr(!0, \ (x, xs) -> <add> (x, xs) \)> [1, 2, 3]
     
+    testt: e -> [<bUnion> (b1, <bUnion> (b2, b3)),
+                 <union> (<isectConstraints> (b1, b2),
+                          <isectConstraints> (b2, b3)),
+                 <isectConstraints> (b1, b2, b3)]
+        with b1 := [B("x", TVar("T1"))];
+             b2 := [B("x", TVar("T2"))];
+             b3 := [B("x", TVar("T3"))]
+    
     // applies an mgu to a type
     // (t, mgu) -> t
     app_mgu: (t, []) -> t
@@ -61,7 +69,7 @@ rules
         where b  := <bUnion> (bCond, <bUnion> (bThen, bElse));
               c  := <unions> [cCond, cThen, cElse
                              ,[CEq(Bool(), tCond), CEq(tThen, tElse)]
-                             ,<isectConstraints> (bCond, <isectConstraints> (bThen, bElse))];
+                             ,<isectConstraints> (bCond, bThen, bElse)];
               c' := <nub> c
     generateConstraints: Var(x) -> (ty, [], [B(x, ty)])
         where ty := TVar(<newname> "T")
@@ -146,11 +154,11 @@ rules
 
     // union of bindings and intersection of constraints in bindings
     // (bs, bs) -> (cs, bs)
-    merge: ([], ys) -> (ys, [])
-    merge: ([B(x, t)|xs], ys) -> (cs', bs')
-        where       bs   := <filter(not(?B(x, _)))> <union> (xs, ys);
-               cs        := <filter(?B(x, _) ; \ (_, t') -> CEq(t, t') \)> ys;
-              (cs', bs') := <merge> ()
+//     merge: (bs1, bs2, bs3, cs) -> bs'
+//         where bs' := <bUnion> (bs1, <bUnion> (bs2, bs3));
+//               cs' := <unions> [cs, <isectConstraints> ()]  
+// 
+// <isectConstraints> (bCond, <isectConstraints> (bThen, bElse))
 
     //[B("x", "T1"), B("x", "T1123"), B("y", "T2"), B("y", "T1234")] -> [B("x", "T1"), B("y", "T2")]
     bUnion: (xs, ys) -> <bUnion> (<union> (xs, ys))	
@@ -165,4 +173,8 @@ rules
     isectConstraints: ([], ys) -> []
     isectConstraints: ([B(x, t)|xs], ys) -> <union> (c, <isectConstraints> (xs, ys))
         where c := <filter(?B(x, _) ; \ (_, t') -> CEq(t, t') \)> ys
+        
+    isectConstraints: (ys, zs) -> []
+    isectConstraints: (xs, ys, zs) -> <unions> [<isectConstraints> (xs, ys),
+                                                <isectConstraints> (ys, zs)]
     isectConstraints = debug(!"isectConstraints: "); fail
