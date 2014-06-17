@@ -1,8 +1,6 @@
 module welltyped
 
 True,
-\x: Num. (if x>1 then x else x),
-True,
 ~True,
 True and False,
 True and ~False,
@@ -29,4 +27,8 @@ sum: Num -> Num = fix f: Num -> Num. \n: Num. (if 1>n then 0 else n+(f (-1+n)));
 (\f: Num -> Num -> Num. (f 1 1)) (\n: Num. \m: Num. n+m),
 if ((\b : Bool. True and ~b) False)
     then True
-    else False
+    else False,
+\x: Num. (if x>1 then x else x),
+\x: Num. (if x>1 then 1 else x),
+\x: Num. (if x>1 then x else 1),
+\x: Num. (if True then x else x)

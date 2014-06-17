@@ -14,13 +14,13 @@ rules
     
     foldtest: e -> <foldr(!0, \ (x, xs) -> <add> (x, xs) \)> [1, 2, 3]
     
-    testt: e -> [<bUnion> (b1, <bUnion> (b2, b3)),
-                 <union> (<isectConstraints> (b1, b2),
-                          <isectConstraints> (b2, b3)),
-                 <isectConstraints> (b1, b2, b3)]
-        with b1 := [B("x", TVar("T1"))];
-             b2 := [B("x", TVar("T2"))];
-             b3 := [B("x", TVar("T3"))]
+    // testt: e -> [<bUnion> (b1, <bUnion> (b2, b3)),
+    //              <union> (<isectConstraints> (b1, b2),
+    //                       <isectConstraints> (b2, b3)),
+    //              <isectConstraints> (b1, b2, b3)]
+    //     with b1 := [B("x", TVar("T1"))];
+    //          b2 := [];
+    //          b3 := [B("x", TVar("T3"))]
     
     // applies an mgu to a type
     // (t, mgu) -> t
@@ -176,5 +176,6 @@ rules
         
     isectConstraints: (ys, zs) -> []
     isectConstraints: (xs, ys, zs) -> <unions> [<isectConstraints> (xs, ys),
-                                                <isectConstraints> (ys, zs)]
+                                                <isectConstraints> (ys, zs),
+                                                <isectConstraints> (xs, zs)]
     isectConstraints = debug(!"isectConstraints: "); fail
