@@ -57,7 +57,7 @@ rules
 
     typeinfer: Module(x, e*) -> t*
         where t* := <map(typeinfer)> e*
-    typeinfer: e -> (t, c, b, mgu, <app_mgu> (t, mgu))
+    typeinfer: e -> <if equal(|<length> b, 0) then !(t, c, b, mgu, <app_mgu> (t, mgu)) else !"Unbound variable" end>
         where (t, c, b) := <bottomup(try(generateConstraints))> e;
               mgu       := <solveConstraints> c
     typeinfer = debug(!"typeinfer: "); fail
@@ -89,31 +89,7 @@ rules
     generateConstraints: Let(x, t, (t1, c1, b1), (t2, c2, b2)) -> (t2, c', b')
         where (b', c') := <merge'> (b1, b2, B(x, t), <unions> [c1, c2, [CEq(t, t1)]])
 /////////////////////////////
-    generateConstraints1: True() -> <debug(!"True: ")>(Bool(), [], [], [])
-    generateConstraints1: False() -> <debug(!"False: ")>(Bool(), [], [], [])
-    generateConstraints1: Num(_) -> <debug(!"Num: ")>(TNum(), [], [], [])
-    generateConstraints1: Not((t, c, b, mgu)) -> <debug(!"Not: ")>(Bool(), [CEq(t, Bool())|c], b, mgu)
-    generateConstraints1: And((t1, c1, b1, mgu1), (t2, c2, b2, mgu2)) -> <debug(!"And: ")>(Bool(), c', b, mgu')
-        where (b, c')     := <merge> (b1, b2, <unions> [c1, c2, [CEq(Bool(), t1), CEq(Bool(), t2)]]);
-               mgu' := []
-    generateConstraints1: Add((t1, c1, b1, m1), (t2, c2, b2, m2)) -> <debug(!"Add: ")>(TNum(), c', b, [])
-        where (b, c') := <merge> (b1, b2, <unions> [c1, c2, [CEq(TNum(), t1), CEq(TNum(), t2)]]) 
-    generateConstraints1: Gt((t1, c1, b1, m1), (t2, c2, b2, m2)) -> <debug(!"Gt: ")>(Bool(), c', b, [])
-        where (b, c') := <merge> (b1, b2, <unions> [c1, c2, [CEq(TNum(), t1), CEq(TNum(), t2)]]) 
-    generateConstraints1: Cond((tCond, cCond, bCond, m1),
-                              (tThen, cThen, bThen, m2),
-                              (tElse, cElse, bElse, m3)) -> <debug(!"Cond: ")>(tThen, c', b, [])
-        where (b, c') := <merge> (bCond, bThen, bElse, <unions> [cCond, cThen, cElse
-                                                                ,[CEq(Bool(), tCond), CEq(tThen, tElse)]]) 
-    generateConstraints1: Var(x) -> <debug(!"Var: ")>(ty, [], [B(x, ty)], [])
-        where ty := TVar(<newname> "T")
-    generateConstraints1: App((t1, c1, b1, m1), (t2, c2, b2, m2)) -> <debug(!"App: ")>(t, c', b, [])
-        where t  := TVar(<newname> "T");
-              (b, c') := <merge> (b1, b2, <unions> [c1, c2, [CEq(t1, Function(t2, t))]])
-    generateConstraints1: Abs(x, t, (t', c, b, m)) -> <debug(!"Abs: ")>(Function(t, t'), <union> (c, <isectConstraints> ([B(x, t)], b)), <filter(not(?(x, _)))> b, [])
-    generateConstraints1: Fix(x, t, (t', c, b, m)) -> <debug(!"Fix: ")>(t, <union> (c, <isectConstraints> ([B(x, t)], b)), <filter(not(?(x, _)))> b, [])
-    generateConstraints1: Let(x, t, (t1, c1, b1, m1), (t2, c2, b2,m2)) -> <debug(!"Let: ")>(t2, c', b', [])
-        where (b', c') := <merge'> (b1, b2, B(x, t), <unions> [c1, c2, [CEq(t, t1)]])
+
 
     // (type, constraints) -> mgu
     solveConstraints: c -> mgu
