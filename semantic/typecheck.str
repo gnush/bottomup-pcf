@@ -54,9 +54,9 @@ rules
     gen = bottomup(try(generateConstraints))
     gen' = bottomup(try(generateConstraints'))
 
-    generateConstraints: True() -> (Bool(), [], [], [])
-    generateConstraints: False() -> (Bool(), [], [], [])
-    generateConstraints: Num(_) -> (TNum(), [], [], [])
+    generateConstraints: True() -> (Bool(), [], [])
+    generateConstraints: False() -> (Bool(), [], [])
+    generateConstraints: Num(_) -> (TNum(), [], [])
     generateConstraints: Not((t, c, b)) -> (Bool(), [CEq(t, Bool())|c], b)
     generateConstraints: And((t1, c1, b1), (t2, c2, b2)) -> (Bool(), c', b)
         where (b, c') := <merge> (b1, b2, <unions> [c1, c2, [CEq(Bool(), t1), CEq(Bool(), t2)]])
