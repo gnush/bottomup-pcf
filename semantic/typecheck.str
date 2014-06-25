@@ -30,9 +30,13 @@ rules
 
     types: Module(x, e*) -> <map(\ (t, _, _, mgu) -> <app_mgu> (t, mgu)\)> t*
         where t* := <map(typeinfer)> e*
+    types': Module(x, e*) -> <map(\ (t, _, _, mgu) -> <app_mgu> (t, mgu)\)> t*
+        where t* := <map(typeinfer')> e*
     
     type: e -> <app_mgu> (t, mgu)
         where (t, _, _, mgu) := <typeinfer> e
+    type': e -> <app_mgu> (t, mgu)
+        where (t, _, _, mgu) := <typeinfer'> e
 
     typeinfer: Module(x, e*) -> t*
         where t* := <map(typeinfer)> e*

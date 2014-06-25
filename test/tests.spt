@@ -195,3 +195,69 @@ test Topdown (Recursion and Let) [[
                  Function(TNum(), TNum()),
                  Bool(),
                  TNum()]
+
+test Typeinference' (1) [[
+    [[(\x: Num. \f: Num -> Num. (f x)) 1 (\x: Num. x + 1)]]
+]] run type' to TNum()
+
+test Typeinference' (2) [[
+    [[if ((\b : Bool. True and ~b) False) then True else False]]
+]] run type' to Bool()
+
+test Typeinference' (Bool) [[
+    True,
+    ~True,
+    True and ~True and True,
+    ~~True
+]] run types' to [Bool(), Bool(), Bool(), Bool()]
+
+test Typeinference' (Num) [[
+    2,
+    12+13,
+    1+2+3+4+5
+]] run types' to [TNum(), TNum(), TNum()]
+
+test Typeinference' (Conditionals) [[
+    if True then 1 else 2,
+    if 1>2 then 1+1 else 1+2,
+    \b: Bool. (if b then False else True),
+    if 1>2 then \x:Num. x else \x:Num. x,
+    \x: Num. (if x>1 then x else x),
+    \x: Num. (if x>1 then 1 else x),
+    \x: Num. (if x>1 then x else 1),
+    \x: Num. (if True then x else x)
+]] run types' to [TNum(), TNum(), Function(Bool(), Bool()), Function(TNum(), TNum()), Function(TNum(), TNum()), Function(TNum(), TNum()), Function(TNum(), TNum()), Function(TNum(), TNum())]
+
+test Typeinference' (Functions) [[
+    \x : Bool. x,
+    (\x : Bool. x) True,
+    \x : Bool -> Bool. x,
+    (\x : Bool -> Bool. x) (\x : Bool. x),
+    \x : Bool. True and x,
+    \x : Bool. \y : Bool. x and y,
+    (\x : Bool. \y : Bool. x and y) True True,
+    \f: Num -> Num. (f 1),
+    (\f: Num -> Num -> Num. (f 1 1)),
+    (\f: Num -> Num -> Num. (f 1 1)) (\n: Num. \m: Num. n+m)
+]] run types' to [Function(Bool(), Bool()),
+                 Bool(),
+                 Function(Function(Bool(), Bool()), Function(Bool(), Bool())),
+                 Function(Bool(), Bool()),
+                 Function(Bool(), Bool()),
+                 Function(Bool(), Function(Bool(), Bool())),
+                 Bool(),
+                 Function(Function(TNum(), TNum()), TNum()),
+                 Function(Function(TNum(), Function(TNum(), TNum())), TNum()),
+                 TNum()]
+
+test Typeinference' (Recursion and Let) [[
+    fix f: Num -> Num. \n: Num. (if 1>n then 0 else n+(f (-1+n))),
+    (fix f: Num -> Num. \n: Num. (if 1>n then 0 else n+(f (-1+n)))) 10,
+    f: Num -> Num -> Num = (\n: Num. \m: Num. n+m); f 2,
+    f: Bool -> Bool -> Bool = (\b1: Bool. \b2: Bool. b1 and b2); f True True, 
+    sum: Num -> Num = fix f: Num -> Num. \n: Num. (if 1>n then 0 else n+(f (-1+n))); (sum 10)
+]] run types' to [Function(TNum(), TNum()),
+                 TNum(),
+                 Function(TNum(), TNum()),
+                 Bool(),
+                 TNum()]
