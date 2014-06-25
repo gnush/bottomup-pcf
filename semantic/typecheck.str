@@ -9,24 +9,13 @@ signature constructors
 	
 rules
     main = io-wrap(types)
-    
-    foldtest: e -> <foldr(!0, \ (x, xs) -> <add> (x, xs) \)> [1, 2, 3]
-    
+
     // applies an mgu to a type
     // (t, mgu) -> t
     app_mgu: (t, []) -> t
     app_mgu: (t, [(x, t')|mgu]) -> <app_mgu> (t1, mgu)
         where t1 := <tSubst> (x, t, t')
     app_mgu = debug(!"app_mgu: "); fail
-
-    testt = !([CEq(Bool(), Bool()), CEq(Bool(), Bool())], []); unify'
-    testtt = !(Function(Bool(), TVar("T1"))); freeTVars
-
-    freeTVars: (Bool(), _) -> []
-    freeTVars: (TNum(), _) -> []
-    freeTVars: (Function(t, t'), bindings) -> <union> (<freeTVars> (t, bindings), <freeTVars> (t', bindings)) 
-    freeTVars: (TVar(x), bindings) -> <elem(?(x, _)) < ![] + ![x]> bindings
-    freeTVars = debug(!"typevars: "); fail
 
     types: Module(x, e*) -> <map(\ (t, _, _, mgu) -> <app_mgu> (t, mgu)\)> t*
         where t* := <map(typeinfer)> e*
