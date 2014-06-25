@@ -7,8 +7,6 @@ signature constructors
 	CEq : Type * Type -> Constraint
 	TVar     : STRING -> Type
 	
-	B : ID * TYPE -> Binding
-	
 rules
     main = io-wrap(types)
     
@@ -46,9 +44,10 @@ rules
     typeinfer': Module(x, e*) -> <map(typeinfer')> e*
     //bu = bottomup(try(generateConstraints1))
     // typeinfer': e -> <if equal(|<length> b, 0) then !(t, c, b, mgu) else !"Unbound variable" end>
-    typeinfer': e -> (t, c, b, mgu)
+    typeinfer': e -> (t, cs, b, mgu')
         where (t, c, b, mgu) := <bottomup(try(generateConstraints'))> e;
-              (cs,mgu') := <unify'> (c, mgu)
+              c' := <map(\ CEq(t1, t2) -> CEq(<app_mgu> (t1, mgu), <app_mgu> (t2, mgu)) \)> c; //map mgu over cs
+              (cs,mgu') := <unify> (c', mgu)
     typeinfer' = debug(!"typeinfer': "); fail
 
     gen = bottomup(try(generateConstraints))
@@ -69,15 +68,15 @@ rules
                               (tElse, cElse, bElse)) -> (tThen, c', b)
         where (b, c') := <merge> (bCond, bThen, bElse, <unions> [cCond, cThen, cElse
                                                                 ,[CEq(Bool(), tCond), CEq(tThen, tElse)]])
-    generateConstraints: Var(x) -> (ty, [], [B(x, ty)])
+    generateConstraints: Var(x) -> (ty, [], [(x, ty)])
         where ty := TVar(<newname> "T")
     generateConstraints: App((t1, c1, b1), (t2, c2, b2)) -> (t, c', b)
         where t  := TVar(<newname> "T");
               (b, c') := <merge> (b1, b2, <unions> [c1, c2, [CEq(t1, Function(t2, t))]])
-    generateConstraints: Abs(x, t, (t', c, b)) -> (Function(t, t'), <union> (c, <isectConstraints> ([B(x, t)], b)), <filter(not(?(x, _)))> b)
-    generateConstraints: Fix(x, t, (t', c, b)) -> (t, <union> (c, <isectConstraints> ([B(x, t)], b)), <filter(not(?(x, _)))> b)
+    generateConstraints: Abs(x, t, (t', c, b)) -> (Function(t, t'), <union> (c, <isectConstraints> ([(x, t)], b)), <filter(not(?(x, _)))> b)
+    generateConstraints: Fix(x, t, (t', c, b)) -> (t, <union> (c, <isectConstraints> ([(x, t)], b)), <filter(not(?(x, _)))> b)
     generateConstraints: Let(x, t, (t1, c1, b1), (t2, c2, b2)) -> (t2, c', b')
-        where (b', c') := <merge'> (b1, b2, B(x, t), <unions> [c1, c2, [CEq(t, t1)]])
+        where (b', c') := <merge'> (b1, b2, (x, t), <unions> [c1, c2, [CEq(t, t1)]])
 /////////////////////////////
     generateConstraints': True() -> (Bool(), [], [], [])
     generateConstraints': False() -> (Bool(), [], [], [])
@@ -105,7 +104,7 @@ rules
               (cs, mgu) := <unify'> (c', <unions> [mguCond, mguThen, mguElse]);
               t         := <app_mgu> (tThen, mgu);
               b'         := <map(\ (x, t) -> (x, <app_mgu> (t, mgu)) \)> b
-    generateConstraints': Var(x) -> (ty, [], [B(x, ty)], [])
+    generateConstraints': Var(x) -> (ty, [], [(x, ty)], [])
         where ty := TVar(<newname> "T")
     generateConstraints': App((t1, c1, b1, mgu1), (t2, c2, b2, mgu2)) -> (t', cs, b', mgu)
         where t         := TVar(<newname> "T");
@@ -114,17 +113,17 @@ rules
               t'        := <app_mgu> (t, mgu);
               b'         := <map(\ (x, t) -> (x, <app_mgu> (t, mgu)) \)> b
     generateConstraints': Abs(x, t1, (t2, c, b, mgu)) -> (Function(t1', t2'), cs, <filter(not(?(x, _)))> b', mgu')
-        where c'         := <union> (c, <isectConstraints> ([B(x, t1)], b));
-              (cs, mgu')  := <unify'> (c', mgu);
+        where c'         := <union> (c, <isectConstraints> ([(x, t1)], b));
+              (cs, mgu') := <unify'> (c', mgu);
               (t1', t2') := (<app_mgu> (t1, mgu'), <app_mgu> (t2, mgu'));
               b'         := <map(\ (x, t) -> (x, <app_mgu> (t, mgu)) \)> b
     generateConstraints': Fix(x, t1, (t2, c, b, mgu)) -> (t1', cs, <filter(not(?(x, _)))> b', mgu')
-        where c'        :=  <union> (c, <isectConstraints> ([B(x, t1)], b));
+        where c'        :=  <union> (c, <isectConstraints> ([(x, t1)], b));
               (cs, mgu') := <unify'> (c', mgu);
               t1'       := <app_mgu> (t1, mgu');
               b'         := <map(\ (x, t) -> (x, <app_mgu> (t, mgu)) \)> b
     generateConstraints': Let(x, t, (t1, c1, b1, mgu1), (t2, c2, b2, mgu2)) -> (t2', cs, b', mgu)
-        where (b, c')  := <merge'> (b1, b2, B(x, t), <unions> [c1, c2, [CEq(t, t1)]]);
+        where (b, c')  := <merge'> (b1, b2, (x, t), <unions> [c1, c2, [CEq(t, t1)]]);
               (cs, mgu) := <unify'> (c', <union> (mgu1, mgu2));
               t2'       := <app_mgu> (t2, mgu);
               b'         := <map(\ (x, t) -> (x, <app_mgu> (t, mgu)) \)> b
@@ -217,25 +216,25 @@ rules
               cs' := <union> (cs, <isectConstraints> (bs1, bs2))
     merge': (bs1, bs2, b, cs) -> (bs', cs')
         where bs  := <bUnion> (bs1, bs2);
-              bs' := <filter(not(?B(x, _)))> bs;
+              bs' := <filter(not(?(x, _)))> bs;
               cs' := <union> (cs, <isectConstraints> ([b|bs1], bs2))
               
     merge  = debug(!"merge: "); fail
     merge' = debug(!"merge: "); fail
 
     //[B("x", "T1"), B("x", "T1123"), B("y", "T2"), B("y", "T1234")] -> [B("x", "T1"), B("y", "T2")]
-    bUnion: (xs, ys) -> <bUnion> (<union> (xs, ys))	
+    bUnion: (xs, ys) -> <bUnion> (<conc> (xs, ys))	
     bUnion: [] -> []
-    bUnion: [B(x, t)|bs] -> [B(x, t)|<bUnion> bs']
-        where bs' := <filter(not(?B(x, _)))> bs
+    bUnion: [(x, t)|bs] -> [(x, t)|<bUnion> bs']
+        where bs' := <filter(not(?(x, _)))> bs
     bUnion = debug(!"bUnion: "); fail
 	
     // [B("x", "T1"), B("y", "T2")] [B("x", "T3")] -> [T1 = T3]
     // [B("x", "T1"), B("y", "T2"), B("x", "T3")] [B("x", "T4"), B("y", "T5")] -> [T1 = T4, T2 = T5, T3 = T4]
     //testtt: e -> (<bIsect> ([B("x", "T1"), B("y", "T2")], [B("x", "T3")]), <bIsect> ([B("x", "T1"), B("y", "T2"), B("x", "T3")], [B("x", "T4"), B("y", "T5")]))
     isectConstraints: ([], ys) -> []
-    isectConstraints: ([B(x, t)|xs], ys) -> <union> (c, <isectConstraints> (xs, ys))
-        where c := <filter(?B(x, _) ; \ (_, t') -> CEq(t, t') \)> ys
+    isectConstraints: ([(x, t)|xs], ys) -> <union> (c, <isectConstraints> (xs, ys))
+        where c := <filter(?(x, _) ; \ (_, t') -> CEq(t, t') \)> ys
         
     isectConstraints: (ys, zs) -> []
     isectConstraints: (xs, ys, zs) -> <unions> [<isectConstraints> (xs, ys),
