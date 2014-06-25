@@ -42,9 +42,7 @@ rules
     typeinfer = debug(!"typeinfer: "); fail
     
     typeinfer': Module(x, e*) -> <map(typeinfer')> e*
-    //bu = bottomup(try(generateConstraints1))
-    // typeinfer': e -> <if equal(|<length> b, 0) then !(t, c, b, mgu) else !"Unbound variable" end>
-    typeinfer': e -> (t, cs, b, mgu')
+    typeinfer': e -> <if equal(|<length> b, 0) then !(t, cs, b, mgu') else !"Unbound variable" end>
         where (t, c, b, mgu) := <bottomup(try(generateConstraints'))> e;
               c' := <map(\ CEq(t1, t2) -> CEq(<app_mgu> (t1, mgu), <app_mgu> (t2, mgu)) \)> c; //map mgu over cs
               (cs,mgu') := <unify> (c', mgu)
