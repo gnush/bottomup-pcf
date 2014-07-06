@@ -23,7 +23,7 @@ language General properties
   table:         include/TypedLambda.tbl
   start symbols: Module
   
-  provider:      include/typedlambda.jar
+  provider:      include/typedlambda.ctree
   provider:      include/typedlambda-java.jar
   
   observer:      editor-analyze (multifile)
