@@ -133,9 +133,17 @@ rules
     generateConstraints': Cond((tCond, cCond, bCond, mguCond), // FIXME
                               (tThen, cThen, bThen, mguThen),
                               (tElse, cElse, bElse, mguElse)) -> (t, cs, b, mgu)
-        where (b, cs, mgu) := <debug(!"blaah"); mergeUnify> (bCond, bThen, bElse, mguCond, mguThen, mguElse,
+        where (b, cs, mgu) := <mergeUnify> (bCond, bThen, bElse, mguCond, mguThen, mguElse,
                                              <concat> [cCond, cThen, cElse, [CEq(Bool(), tCond), CEq(tThen, tElse)]]);
                t           := <app_mgu> (tThen, mgu)
+    // generateConstraints': Cond((tCond, cCond, bCond, mguCond),
+    //                           (tThen, cThen, bThen, mguThen),
+    //                           (tElse, cElse, bElse, mguElse)) -> (t, cs, b', mgu)
+    //     where (b, c')   := <merge> (bCond, bThen, bElse, <unions> [cCond, cThen, cElse
+    //                                                               ,[CEq(Bool(), tCond), CEq(tThen, tElse)]]);
+    //           (cs, mgu) := <unify'> (c', [], <unions> [mguCond, mguThen, mguElse]);
+    //           t         := <app_mgu> (tThen, mgu);
+    //           b'         := <map(\ (x, t) -> (x, <app_mgu> (t, mgu)) \)> b
     generateConstraints': Var(x) -> (ty, [], [(x, ty)], [])
         where ty := TVar(<newname> "T")
     generateConstraints': App((t1, c1, b1, mgu1), (t2, c2, b2, mgu2)) -> (t', cs, b, mgu)
@@ -158,7 +166,7 @@ rules
               b'         := <map(\ (x, t) -> (x, <app_mgu> (t, mgu)) \)> b
     mergeUnify: (b1, b2, b3, mgu1, mgu2, mgu3, cs) -> (b', cs', mgu)
         where (b, c)     := <merge> (b1, b2, b3, cs);
-              (cs', mgu) := <unify'> (c, [], <unions> (mgu1, mgu2, mgu3));
+              (cs', mgu) := <unify'> (c, [], <unions> [mgu1, mgu2, mgu3]);
               b'         := <map(\ (x, t) -> (x, <app_mgu> (t, mgu)) \)> b
     mergeUnify: (b1, b2, binding, mgu1, mgu2, cs) -> (b', cs', mgu)
         where (b, c)     := <merge'> (b1, b2, binding, cs);
