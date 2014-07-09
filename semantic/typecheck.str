@@ -222,9 +222,6 @@ rules
         where bs' := <filter(not(?(x, _)))> bs
     bUnion = debug(!"bUnion: "); fail
     
-    // [B("x", "T1"), B("y", "T2")] [B("x", "T3")] -> [T1 = T3]
-    // [B("x", "T1"), B("y", "T2"), B("x", "T3")] [B("x", "T4"), B("y", "T5")] -> [T1 = T4, T2 = T5, T3 = T4]
-    //testtt: e -> (<bIsect> ([B("x", "T1"), B("y", "T2")], [B("x", "T3")]), <bIsect> ([B("x", "T1"), B("y", "T2"), B("x", "T3")], [B("x", "T4"), B("y", "T5")]))
     isectConstraints: ([], ys) -> []
     isectConstraints: ([(x, t)|xs], ys) -> <union> (c, <isectConstraints> (xs, ys))
         where c := <filter(?(x, _) ; \ (_, t') -> CEq(t, t') \)> ys
