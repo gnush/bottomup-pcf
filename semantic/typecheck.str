@@ -5,6 +5,7 @@ imports
 
 signature constructors
     CEq : Type * Type -> Constraint
+    CEqErr : Type * Type * String -> Constraint
     TVar     : STRING -> Type
     
 rules
