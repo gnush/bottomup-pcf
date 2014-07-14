@@ -35,8 +35,12 @@ rules
     typeinfer = debug(!"typeinfer: "); fail
     
     typeinfer': Module(x, e*) -> <map(typeinfer')> e*
-    typeinfer': e -> <if equal(|<length> b, 0) then !(t, c', b, mgu) else !"Unbound variable" end>
-        where (t, c, b, mgu) := <bottomup(try(generateConstraints'))> e;
+    typeinfer': e -> <if equal(|<length> b, 0) then if equal(|<length> errs, 0)
+                                                        then !(t, c', b, mgu)
+                                                        else !errs
+                                                            end
+                                               else !["Unbound variable"|errs] end>
+        where (t, c, b, mgu, errs) := <bottomup(try(generateConstraints'))> e;
               c' := <map(\ CEqErr(t1, t2, err) -> CEqErr(<app_mgu> (t1, mgu), <app_mgu> (t2, mgu), err) \)> c //map mgu over cs
               //(cs,mgu') := <unify> (c', mgu)
     typeinfer' = debug(!"typeinfer': "); fail
@@ -69,38 +73,38 @@ rules
     generateConstraints: Let(x, t, (t1, c1, b1), (t2, c2, b2)) -> (t2, c', b')
         where (b', c') := <merge'> (b1, b2, (x, t), <unions> [c1, c2, [CEqErr(t, t1, "Actual type does not match denoted type")]])
 /////////////////////////////
-    generateConstraints': True() -> (Bool(), [], [], [])
-    generateConstraints': False() -> (Bool(), [], [], [])
-    generateConstraints': Num(_) -> (TNum(), [], [], [])
-    generateConstraints': Not((t, c, b, mgu)) -> (Bool(), cs, b', mgu')
-        where (cs, mgu') := <unify'> ([CEqErr(t, Bool(), "Not arg type not Bool")|c], [], mgu);
+    generateConstraints': True() -> (Bool(), [], [], [], [])
+    generateConstraints': False() -> (Bool(), [], [], [], [])
+    generateConstraints': Num(_) -> (TNum(), [], [], [], [])
+    generateConstraints': Not((t, c, b, mgu, err)) -> (Bool(), cs, b', mgu', <union> (err, errs))
+        where (cs, mgu', errs) := <unify'> ([CEqErr(t, Bool(), "Not arg type not Bool")|c], [], mgu, []);
               b'         := <map(\ (x, t) -> (x, <app_mgu> (t, mgu)) \)> b
-    generateConstraints': And((t1, c1, b1, mgu1), (t2, c2, b2, mgu2)) -> (Bool(), cs, b, mgu)
-        where (b, cs, mgu) := <mergeUnify> (b1, b2, mgu1, mgu2, <concat> [c1, c2, [CEqErr(Bool(), t1, "And fst"), CEqErr(Bool(), t2, "And snd")]])
-    generateConstraints': Add((t1, c1, b1, mgu1), (t2, c2, b2, mgu2)) -> (TNum(), cs, b, mgu)
-        where (b, cs, mgu) := <mergeUnify> (b1, b2, mgu1, mgu2, <concat> [c1, c2, [CEqErr(TNum(), t1, "Add fst"), CEqErr(TNum(), t2, "Add snd")]])
-    generateConstraints': Gt((t1, c1, b1, mgu1), (t2, c2, b2, mgu2)) -> (Bool(), cs, b, mgu)
-        where (b, cs, mgu) := <mergeUnify> (b1, b2, mgu1, mgu2, <concat> [c1, c2, [CEqErr(TNum(), t1, "Gt fst"), CEqErr(TNum(), t2, "Gt snd")]])
-    generateConstraints': Cond((tCond, cCond, bCond, mguCond),
-                              (tThen, cThen, bThen, mguThen),
-                              (tElse, cElse, bElse, mguElse)) -> (t, cs, b, mgu)
-        where (b, cs, mgu) := <mergeUnify> (bCond, bThen, bElse, mguCond, mguThen, mguElse,
+    generateConstraints': And((t1, c1, b1, mgu1, err1), (t2, c2, b2, mgu2, err2)) -> (Bool(), cs, b, mgu, <unions> [err1, err2, errs])
+        where (b, cs, mgu, errs) := <mergeUnify> (b1, b2, mgu1, mgu2, <concat> [c1, c2, [CEqErr(Bool(), t1, "And fst"), CEqErr(Bool(), t2, "And snd")]])
+    generateConstraints': Add((t1, c1, b1, mgu1, err1), (t2, c2, b2, mgu2, err2)) -> (TNum(), cs, b, mgu, <unions> [err1, err2, errs])
+        where (b, cs, mgu, errs) := <mergeUnify> (b1, b2, mgu1, mgu2, <concat> [c1, c2, [CEqErr(TNum(), t1, "Add fst"), CEqErr(TNum(), t2, "Add snd")]])
+    generateConstraints': Gt((t1, c1, b1, mgu1, err1), (t2, c2, b2, mgu2, err2)) -> (Bool(), cs, b, mgu, <unions> [err1, err2, errs])
+        where (b, cs, mgu, errs) := <mergeUnify> (b1, b2, mgu1, mgu2, <concat> [c1, c2, [CEqErr(TNum(), t1, "Gt fst"), CEqErr(TNum(), t2, "Gt snd")]])
+    generateConstraints': Cond((tCond, cCond, bCond, mguCond, errCond),
+                              (tThen, cThen, bThen, mguThen, errThen),
+                              (tElse, cElse, bElse, mguElse, errElse)) -> (t, cs, b, mgu, <unions> [errCond, errThen, errElse, errs])
+        where (b, cs, mgu, errs) := <mergeUnify> (bCond, bThen, bElse, mguCond, mguThen, mguElse,
                                              <concat> [cCond, cThen, cElse, [CEqErr(Bool(), tCond, "Cond type"), CEqErr(tThen, tElse, "branch mismatch")]]);
                t           := <app_mgu> (tThen, mgu)
-    generateConstraints': Var(x) -> (ty, [], [(x, ty)], [])
+    generateConstraints': Var(x) -> (ty, [], [(x, ty)], [], [])
         where ty := TVar(<newname> "T")
-    generateConstraints': App((t1, c1, b1, mgu1), (t2, c2, b2, mgu2)) -> (t', cs, b, mgu)
+    generateConstraints': App((t1, c1, b1, mgu1, err1), (t2, c2, b2, mgu2, err2)) -> (t', cs, b, mgu, <unions> [err1, err2, errs])
         where t            := TVar(<newname> "T");
-              (b, cs, mgu) := <mergeUnify> (b1, b2, mgu1, mgu2, <concat> [c1, c2, [CEqErr(t1, Function(t2, t), "apply to function")]]);
+              (b, cs, mgu, errs) := <mergeUnify> (b1, b2, mgu1, mgu2, <concat> [c1, c2, [CEqErr(t1, Function(t2, t), "apply to function")]]);
               t'           := <app_mgu> (t, mgu)
-    generateConstraints': Abs(x, t1, (t2, c, binding, mgu)) -> (Function(t1', t2'), cs, <filter(not(?(x, _)))> b, mgu')
-        where (b, cs, mgu') := <mergeUnify> ([(x, t1)], binding, mgu, [], c);
+    generateConstraints': Abs(x, t1, (t2, c, binding, mgu, err)) -> (Function(t1', t2'), cs, <filter(not(?(x, _)))> b, mgu', <union> (err, errs))
+        where (b, cs, mgu', errs) := <mergeUnify> ([(x, t1)], binding, mgu, [], c);
               (t1', t2')    := (<app_mgu> (t1, mgu'), <app_mgu> (t2, mgu'))
-    generateConstraints': Fix(x, t1, (t2, c, b0, mgu)) -> (t1', cs, <filter(not(?(x, _)))> b, mgu')
-        where (b, cs, mgu') := <mergeUnify> ([(x, t1)], b0, mgu, [], c);
+    generateConstraints': Fix(x, t1, (t2, c, b0, mgu, err)) -> (t1', cs, <filter(not(?(x, _)))> b, mgu', <union> (err, errs))
+        where (b, cs, mgu', errs) := <mergeUnify> ([(x, t1)], b0, mgu, [], c);
               t1'           := <app_mgu> (t1, mgu')
-    generateConstraints': Let(x, t, (t1, c1, b1, mgu1), (t2, c2, b2, mgu2)) -> (t2', cs, b, mgu)
-        where (b, cs, mgu) := <mergeUnify> (b1, b2, (x, t), mgu1, mgu2, <concat> [c1, c2, [CEqErr(t, t1, "actual type doesn't match denoted type")]]);
+    generateConstraints': Let(x, t, (t1, c1, b1, mgu1, err1), (t2, c2, b2, mgu2, err2)) -> (t2', cs, b, mgu, <unions> [err1, err2, errs])
+        where (b, cs, mgu, errs) := <mergeUnify> (b1, b2, (x, t), mgu1, mgu2, <concat> [c1, c2, [CEqErr(t, t1, "actual type doesn't match denoted type")]]);
               t2'          := <app_mgu> (t2, mgu)
 
     // (type, constraints) -> mgu
@@ -136,32 +140,32 @@ rules
     unify = debug(!"unify"); fail
     
     ///////////////////////////
-    //unify': goodConstraints, mediumConstraints, mgu -> mediumConstraints, mgu
-    unify': ([CEqErr(t, t, _)|cs], mCs, mgu) -> <unify'> (cs, mCs, mgu) // trivial
-    unify': ([CEqErr(Function(t1, t1'), Function(t2, t2'), err)|cs], mCs, mgu) -> <unify'> (cs', mCs, mgu) // decompose 
+    //unify': goodConstraints, mediumConstraints, mgu, errors -> mediumConstraints, mgu, errors
+    unify': ([CEqErr(t, t, _)|cs], mCs, mgu, errs) -> <unify'> (cs, mCs, mgu, errs) // trivial
+    unify': ([CEqErr(Function(t1, t1'), Function(t2, t2'), err)|cs], mCs, mgu, errs) -> <unify'> (cs', mCs, mgu, errs) // decompose 
         where cs' := <concat> [[CEqErr(t1, t2, err), CEqErr(t1', t2', err)], cs]
     
-    unify': ([CEqErr(Bool(), Function(_, _), err)|cs], mCs, mgu) -> <fail> // clash
-    unify': ([CEqErr(Function(_, _), Bool(), err)|cs], mCs, mgu) -> <fail>
-    unify': ([CEqErr(TNum(), Bool(), err)|cs], mCs, mgu)  -> <fail>
-    unify': ([CEqErr(Bool(), TNum(), err)|cs], mCs, mgu)  -> <fail>
-    unify': ([CEqErr(Function(_, _), TNum(), err)|cs], mCs, mgu)  -> <fail>
-    unify': ([CEqErr(TNum(), Function(_, _), err)|cs], mCs, mgu)  -> <fail>
+    unify': ([CEqErr(Bool(), Function(_, _), err)|cs], mCs, mgu, errs) -> <unify'> (cs, mCs, mgu, [err|errs]) // clash
+    unify': ([CEqErr(Function(_, _), Bool(), err)|cs], mCs, mgu, errs) -> <unify'> (cs, mCs, mgu, [err|errs])
+    unify': ([CEqErr(TNum(), Bool(), err)|cs], mCs, mgu, errs)  -> <unify'> (cs, mCs, mgu, [err|errs])
+    unify': ([CEqErr(Bool(), TNum(), err)|cs], mCs, mgu, errs)  -> <unify'> (cs, mCs, mgu, [err|errs])
+    unify': ([CEqErr(Function(_, _), TNum(), err)|cs], mCs, mgu, errs)  -> <unify'> (cs, mCs, mgu, [err|errs])
+    unify': ([CEqErr(TNum(), Function(_, _), err)|cs], mCs, mgu, errs)  -> <unify'> (cs, mCs, mgu, [err|errs])
     
-    unify': ([c@CEqErr(TVar(x), TVar(y), err)|cs], mCs, mgu) -> <unify'> (cs, [c|mCs], mgu) // T1 = T2 is skipped in intermediate unification
+    unify': ([c@CEqErr(TVar(x), TVar(y), err)|cs], mCs, mgu, errs) -> <unify'> (cs, [c|mCs], mgu, errs) // T1 = T2 is skipped in intermediate unification
                                                                                     // so that there is no infinite orientation cycle
-    unify': ([CEqErr(t, TVar(x), err)|cs], mCs, mgu) -> <unify'> ([CEqErr(TVar(x), t, err)|cs], mCs, mgu) // orient
+    unify': ([CEqErr(t, TVar(x), err)|cs], mCs, mgu, errs) -> <unify'> ([CEqErr(TVar(x), t, err)|cs], mCs, mgu, errs) // orient
     
-    unify': ([CEqErr(TVar(x), t, err)|cs], mCs, mgu) -> <if <occurs> (x, t)
-                                                            then fail
-                                                            else <unify'> (cs', mCs', mgu')
-                                                        end>
+    unify': ([CEqErr(TVar(x), t, err)|cs], mCs, mgu, errs) -> <if <occurs> (x, t)
+                                                                  then <unify'> (cs, mCs, mgu, [err|errs])
+                                                                  else <unify'> (cs', mCs', mgu', errs)
+                                                                end>
     where cs'  := <map(\ CEqErr(t1, t2, err) -> CEqErr(<tSubst> (x, t1, t), <tSubst> (x, t2, t), err) \)> cs; //map subst over cs;
           mCs' := <map(\ CEqErr(t1, t2, err) -> CEqErr(<tSubst> (x, t1, t), <tSubst> (x, t2, t), err) \)> mCs; //map subst over mCs;
           mgu1 := <map(\ (y, t1) -> (y, <tSubst> (x, t1, t)) \)> mgu; //map subst over mgu
           mgu' := [(x, t)|mgu1]
           
-    unify': ([], mCs, mgu) -> (mCs, mgu)
+    unify': ([], mCs, mgu, errs) -> (mCs, mgu, errs)
     unify' = debug(!"unify"); fail
     
     // if var occurs in term true, else false 
@@ -200,17 +204,17 @@ rules
     merge  = debug(!"merge: "); fail
     merge' = debug(!"merge: "); fail
     
-    mergeUnify: (b1, b2, mgu1, mgu2, cs) -> (b', cs', mgu)
+    mergeUnify: (b1, b2, mgu1, mgu2, cs) -> (b', cs', mgu, errs)
         where (b, c)     := <merge> (b1, b2, cs);
-              (cs', mgu) := <unify'> (c, [], <union> (mgu1, mgu2));
+              (cs', mgu, errs) := <unify'> (c, [], <union> (mgu1, mgu2), []);
               b'         := <map(\ (x, t) -> (x, <app_mgu> (t, mgu)) \)> b
-    mergeUnify: (b1, b2, b3, mgu1, mgu2, mgu3, cs) -> (b', cs', mgu)
+    mergeUnify: (b1, b2, b3, mgu1, mgu2, mgu3, cs) -> (b', cs', mgu, errs)
         where (b, c)     := <merge> (b1, b2, b3, cs);
-              (cs', mgu) := <unify'> (c, [], <unions> [mgu1, mgu2, mgu3]);
+              (cs', mgu, errs) := <unify'> (c, [], <unions> [mgu1, mgu2, mgu3], []);
               b'         := <map(\ (x, t) -> (x, <app_mgu> (t, mgu)) \)> b
-    mergeUnify: (b1, b2, binding, mgu1, mgu2, cs) -> (b', cs', mgu)
+    mergeUnify: (b1, b2, binding, mgu1, mgu2, cs) -> (b', cs', mgu, errs)
         where (b, c)     := <merge'> (b1, b2, binding, cs);
-              (cs', mgu) := <unify'> (c, [], <union> (mgu1, mgu2));
+              (cs', mgu, errs) := <unify'> (c, [], <union> (mgu1, mgu2), []);
               b'         := <map(\ (x, t) -> (x, <app_mgu> (t, mgu)) \)> b
     mergeUnify = debug(!"mergeUnify: "); fail
 
