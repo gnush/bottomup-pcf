@@ -5,229 +5,228 @@ imports
 
 signature constructors
     CEq : Type * Type -> Constraint
-    CEqErr : Type * Type * String -> Constraint
     TVar     : STRING -> Type
     
 rules
-    main = io-wrap(types)
-
-    // applies an mgu to a type
-    // (t, mgu) -> t
-    app_mgu: (t, []) -> t
-    app_mgu: (t, [(x, t')|mgu]) -> <app_mgu> (t1, mgu)
-        where t1 := <tSubst> (x, t, t')
-    app_mgu = debug(!"app_mgu: "); fail
-
-    types: Module(x, e*) -> <map(\ (t, _, _, mgu) -> <app_mgu> (t, mgu)\)> t*
-        where t* := <map(typeinfer)> e*
-    types': Module(x, e*) -> <map(\ (t, _, _, mgu) -> <app_mgu> (t, mgu)\)> t*
-        where t* := <map(typeinfer')> e*
-    
-    type: e -> <app_mgu> (t, mgu)
-        where (t, _, _, mgu) := <typeinfer> e
-    type': e -> <app_mgu> (t, mgu)
-        where (t, _, _, mgu) := <typeinfer'> e
-
-    typeinfer: Module(x, e*) -> t*
-        where t* := <map(typeinfer)> e*
-    typeinfer: e -> <if equal(|<length> b, 0) then !(t, c, b, mgu) else !"Unbound variable" end>
-        where (t, c, b) := <bottomup(try(generateConstraints))> e;
-              mgu       := <solveConstraints> c
-    typeinfer = debug(!"typeinfer: "); fail
-    
-    typeinfer': Module(x, e*) -> <map(typeinfer')> e*
-    typeinfer': e -> <if equal(|<length> b, 0) then !(t, c', b, mgu) else !"Unbound variable" end>
-        where (t, c, b, mgu) := <bottomup(try(generateConstraints'))> e;
-              c' := <map(\ CEq(t1, t2) -> CEq(<app_mgu> (t1, mgu), <app_mgu> (t2, mgu)) \)> c //map mgu over cs
-              //(cs,mgu') := <unify> (c', mgu)
-    typeinfer' = debug(!"typeinfer': "); fail
-
-    gen = bottomup(try(generateConstraints))
-    gen' = bottomup(try(generateConstraints'))
-
-    generateConstraints: True() -> (Bool(), [], [])
-    generateConstraints: False() -> (Bool(), [], [])
-    generateConstraints: Num(_) -> (TNum(), [], [])
-    generateConstraints: Not((t, c, b)) -> (Bool(), [CEq(t, Bool())|c], b)
-    generateConstraints: And((t1, c1, b1), (t2, c2, b2)) -> (Bool(), c', b)
-        where (b, c') := <merge> (b1, b2, <unions> [c1, c2, [CEq(Bool(), t1), CEq(Bool(), t2)]])
-    generateConstraints: Add((t1, c1, b1), (t2, c2, b2)) -> (TNum(), c', b)
-        where (b, c') := <merge> (b1, b2, <unions> [c1, c2, [CEq(TNum(), t1), CEq(TNum(), t2)]]) 
-    generateConstraints: Gt((t1, c1, b1), (t2, c2, b2)) -> (Bool(), c', b)
-        where (b, c') := <merge> (b1, b2, <unions> [c1, c2, [CEq(TNum(), t1), CEq(TNum(), t2)]]) 
-    generateConstraints: Cond((tCond, cCond, bCond),
-                              (tThen, cThen, bThen),
-                              (tElse, cElse, bElse)) -> (tThen, c', b)
-        where (b, c') := <merge> (bCond, bThen, bElse, <unions> [cCond, cThen, cElse
-                                                                ,[CEq(Bool(), tCond), CEq(tThen, tElse)]])
-    generateConstraints: Var(x) -> (ty, [], [(x, ty)])
-        where ty := TVar(<newname> "T")
-    generateConstraints: App((t1, c1, b1), (t2, c2, b2)) -> (t, c', b)
-        where t  := TVar(<newname> "T");
-              (b, c') := <merge> (b1, b2, <unions> [c1, c2, [CEq(t1, Function(t2, t))]])
-    generateConstraints: Abs(x, t, (t', c, b)) -> (Function(t, t'), <union> (c, <isectConstraints> ([(x, t)], b)), <filter(not(?(x, _)))> b)
-    generateConstraints: Fix(x, t, (t', c, b)) -> (t, <union> (c, <isectConstraints> ([(x, t)], b)), <filter(not(?(x, _)))> b)
-    generateConstraints: Let(x, t, (t1, c1, b1), (t2, c2, b2)) -> (t2, c', b')
-        where (b', c') := <merge'> (b1, b2, (x, t), <unions> [c1, c2, [CEq(t, t1)]])
-/////////////////////////////
-    generateConstraints': True() -> (Bool(), [], [], [])
-    generateConstraints': False() -> (Bool(), [], [], [])
-    generateConstraints': Num(_) -> (TNum(), [], [], [])
-    generateConstraints': Not((t, c, b, mgu)) -> (Bool(), cs, b', mgu')
-        where (cs, mgu') := <unify'> ([CEq(t, Bool())|c], [], mgu);
-              b'         := <map(\ (x, t) -> (x, <app_mgu> (t, mgu)) \)> b
-    generateConstraints': And((t1, c1, b1, mgu1), (t2, c2, b2, mgu2)) -> (Bool(), cs, b, mgu)
-        where (b, cs, mgu) := <mergeUnify> (b1, b2, mgu1, mgu2, <concat> [c1, c2, [CEq(Bool(), t1), CEq(Bool(), t2)]])
-    generateConstraints': Add((t1, c1, b1, mgu1), (t2, c2, b2, mgu2)) -> (TNum(), cs, b, mgu)
-        where (b, cs, mgu) := <mergeUnify> (b1, b2, mgu1, mgu2, <concat> [c1, c2, [CEq(TNum(), t1), CEq(TNum(), t2)]])
-    generateConstraints': Gt((t1, c1, b1, mgu1), (t2, c2, b2, mgu2)) -> (Bool(), cs, b, mgu)
-        where (b, cs, mgu) := <mergeUnify> (b1, b2, mgu1, mgu2, <concat> [c1, c2, [CEq(TNum(), t1), CEq(TNum(), t2)]])
-    generateConstraints': Cond((tCond, cCond, bCond, mguCond),
-                              (tThen, cThen, bThen, mguThen),
-                              (tElse, cElse, bElse, mguElse)) -> (t, cs, b, mgu)
-        where (b, cs, mgu) := <mergeUnify> (bCond, bThen, bElse, mguCond, mguThen, mguElse,
-                                             <concat> [cCond, cThen, cElse, [CEq(Bool(), tCond), CEq(tThen, tElse)]]);
-               t           := <app_mgu> (tThen, mgu)
-    generateConstraints': Var(x) -> (ty, [], [(x, ty)], [])
-        where ty := TVar(<newname> "T")
-    generateConstraints': App((t1, c1, b1, mgu1), (t2, c2, b2, mgu2)) -> (t', cs, b, mgu)
-        where t            := TVar(<newname> "T");
-              (b, cs, mgu) := <mergeUnify> (b1, b2, mgu1, mgu2, <concat> [c1, c2, [CEq(t1, Function(t2, t))]]);
-              t'           := <app_mgu> (t, mgu)
-    generateConstraints': Abs(x, t1, (t2, c, binding, mgu)) -> (Function(t1', t2'), cs, <filter(not(?(x, _)))> b, mgu')
-        where (b, cs, mgu') := <mergeUnify> ([(x, t1)], binding, mgu, [], c);
-              (t1', t2')    := (<app_mgu> (t1, mgu'), <app_mgu> (t2, mgu'))
-    generateConstraints': Fix(x, t1, (t2, c, b0, mgu)) -> (t1', cs, <filter(not(?(x, _)))> b, mgu')
-        where (b, cs, mgu') := <mergeUnify> ([(x, t1)], b0, mgu, [], c);
-              t1'           := <app_mgu> (t1, mgu')
-    generateConstraints': Let(x, t, (t1, c1, b1, mgu1), (t2, c2, b2, mgu2)) -> (t2', cs, b, mgu)
-        where (b, cs, mgu) := <mergeUnify> (b1, b2, (x, t), mgu1, mgu2, <concat> [c1, c2, [CEq(t, t1)]]);
-              t2'          := <app_mgu> (t2, mgu)
-
-    // (type, constraints) -> mgu
-    solveConstraints: c -> mgu
-       where (_, mgu) := <unify> (c, [])
-    solveConstraints = debug(!"solveConstraints: "); fail
-
-    // robinson: trivial, decompose, clash, orient, occur, varibale elimination
-    //unify: (cs, mgu) -> (cs', mgu')
-    unify: ([CEq(t, t)|cs], mgu) -> <unify> (cs, mgu) //trivial
-
-    unify: ([CEq(Function(t1, t1'), Function(t2, t2'))|cs], mgu) -> <unify> (cs', mgu) // decompose 
-        where cs' := <concat> [[CEq(t1, t2), CEq(t1', t2')], cs]
-
-    // is there a way to check for equality of constructors?
-    unify: ([CEq(Bool(), Function(_, _))|cs], mgu) -> <fail> // clash
-    unify: ([CEq(Function(_, _), Bool())|cs], mgu) -> <fail>
-    unify: ([CEq(TNum(), Bool())|cs], mgu)  -> <fail>
-    unify: ([CEq(Bool(), TNum())|cs], mgu)  -> <fail>
-    unify: ([CEq(Function(_, _), TNum())|cs], mgu)  -> <fail>
-    unify: ([CEq(TNum(), Function(_, _))|cs], mgu)  -> <fail>
-
-    unify: ([CEq(t, TVar(x))|cs], mgu) -> <unify> (<union> (cs, [CEq(TVar(x), t)]), mgu) // orient
-
-    unify: ([CEq(TVar(x), t)|cs], mgu) -> <if <occurs> (x, t)
-                                            then fail // x occurs in t
-                                            else <unify> (cs', mgu') end> // variable elimination
-        where cs'  := <map(\ CEq(t1, t2) -> CEq(<tSubst> (x, t1, t), <tSubst> (x, t2, t)) \)> cs; //map subst over cs
-              mgu1 := <map(\ (y, t1) -> (y, <tSubst> (x, t1, t)) \)> mgu; //map subst over mgu
-              mgu' := [(x, t)|mgu1]
-
-    unify: ([], mgu) -> ([], mgu)
-    unify = debug(!"unify"); fail
-    
-    ///////////////////////////
-    //unify': goodConstraints, mediumConstraints, mgu -> mediumConstraints, mgu
-    unify': ([CEq(t, t)|cs], mCs, mgu) -> <unify'> (cs, mCs, mgu) // trivial
-    unify': ([CEq(Function(t1, t1'), Function(t2, t2'))|cs], mCs, mgu) -> <unify'> (cs', mCs, mgu) // decompose 
-        where cs' := <concat> [[CEq(t1, t2), CEq(t1', t2')], cs]
-    
-    unify': ([CEq(Bool(), Function(_, _))|cs], mCs, mgu) -> <fail> // clash
-    unify': ([CEq(Function(_, _), Bool())|cs], mCs, mgu) -> <fail>
-    unify': ([CEq(TNum(), Bool())|cs], mCs, mgu)  -> <fail>
-    unify': ([CEq(Bool(), TNum())|cs], mCs, mgu)  -> <fail>
-    unify': ([CEq(Function(_, _), TNum())|cs], mCs, mgu)  -> <fail>
-    unify': ([CEq(TNum(), Function(_, _))|cs], mCs, mgu)  -> <fail>
-    
-    unify': ([c@CEq(TVar(x), TVar(y))|cs], mCs, mgu) -> <unify'> (cs, [c|mCs], mgu) // T1 = T2 is skipped in intermediate unification
-                                                                                    // so that there is no infinite orientation cycle
-    unify': ([CEq(t, TVar(x))|cs], mCs, mgu) -> <unify'> ([CEq(TVar(x), t)|cs], mCs, mgu) // orient
-    
-    unify': ([CEq(TVar(x), t)|cs], mCs, mgu) -> <if <occurs> (x, t)
-                                                    then fail
-                                                    else <unify'> (cs', mCs', mgu')
-                                                        end>
-    where cs'  := <map(\ CEq(t1, t2) -> CEq(<tSubst> (x, t1, t), <tSubst> (x, t2, t)) \)> cs; //map subst over cs;
-          mCs' := <map(\ CEq(t1, t2) -> CEq(<tSubst> (x, t1, t), <tSubst> (x, t2, t)) \)> mCs; //map subst over mCs;
-          mgu1 := <map(\ (y, t1) -> (y, <tSubst> (x, t1, t)) \)> mgu; //map subst over mgu
-          mgu' := [(x, t)|mgu1]
-          
-    unify': ([], mCs, mgu) -> (mCs, mgu)
-    unify' = debug(!"unify"); fail
-    
-    // if var occurs in term true, else false 
-    occurs: (var, Bool())          -> <fail>
-    occurs: (var, TNum())          -> <fail>
-    occurs: (var, TVar(var))       -> <id>
-    occurs: (var, TVar(_))         -> <fail>
-    occurs: (var, Function(t, t')) -> <if <occurs> (var, t)
-                                        then id
-                                        else <occurs> (var, t') end>
-    // occurs = debug(!"occurs: ")
-
-    // substitute x in t with t'
-    tSubst: (x, Bool(), t')           -> Bool()
-    tSubst: (x, TNum(), t')           -> TNum()
-    tSubst: (x, Function(t1, t2), t') -> Function(t1', t2')
-        where t1' := <tSubst> (x, t1, t');
-              t2' := <tSubst> (x, t2, t')
-    tSubst: (x, TVar(x), t')          -> t'
-    tSubst: (x, TVar(y), t')          -> TVar(y)
-    tSubst = debug(!"tSubst: "); fail
-
-    // union of bindings and intersection of constraints in bindings
-    // (bs, bs) -> (cs, bs)
-    merge: (bs1, bs2, bs3, cs) -> (bs', cs')
-        where bs' := <bUnion> (bs1, <bUnion> (bs2, bs3));
-              cs' := <union> (cs, <isectConstraints> (bs1, bs2, bs3))
-    merge: (bs1, bs2, cs) -> (bs', cs')
-        where bs' := <bUnion> (bs1, bs2);
-              cs' := <union> (cs, <isectConstraints> (bs1, bs2))
-    merge': (bs1, bs2, b, cs) -> (bs', cs')
-        where bs  := <bUnion> (bs1, bs2);
-              bs' := <filter(not(?(x, _)))> bs;
-              cs' := <union> (cs, <isectConstraints> ([b|bs1], bs2))
-              
-    merge  = debug(!"merge: "); fail
-    merge' = debug(!"merge: "); fail
-    
-    mergeUnify: (b1, b2, mgu1, mgu2, cs) -> (b', cs', mgu)
-        where (b, c)     := <merge> (b1, b2, cs);
-              (cs', mgu) := <unify'> (c, [], <union> (mgu1, mgu2));
-              b'         := <map(\ (x, t) -> (x, <app_mgu> (t, mgu)) \)> b
-    mergeUnify: (b1, b2, b3, mgu1, mgu2, mgu3, cs) -> (b', cs', mgu)
-        where (b, c)     := <merge> (b1, b2, b3, cs);
-              (cs', mgu) := <unify'> (c, [], <unions> [mgu1, mgu2, mgu3]);
-              b'         := <map(\ (x, t) -> (x, <app_mgu> (t, mgu)) \)> b
-    mergeUnify: (b1, b2, binding, mgu1, mgu2, cs) -> (b', cs', mgu)
-        where (b, c)     := <merge'> (b1, b2, binding, cs);
-              (cs', mgu) := <unify'> (c, [], <union> (mgu1, mgu2));
-              b'         := <map(\ (x, t) -> (x, <app_mgu> (t, mgu)) \)> b
-    mergeUnify = debug(!"mergeUnify: "); fail
-
-    //[B("x", "T1"), B("x", "T1123"), B("y", "T2"), B("y", "T1234")] -> [B("x", "T1"), B("y", "T2")]
-    bUnion: (xs, ys) -> <bUnion> (<conc> (xs, ys))  
-    bUnion: [] -> []
-    bUnion: [(x, t)|bs] -> [(x, t)|<bUnion> bs']
-        where bs' := <filter(not(?(x, _)))> bs
-    bUnion = debug(!"bUnion: "); fail
-    
-    isectConstraints: ([], ys) -> []
-    isectConstraints: ([(x, t)|xs], ys) -> <union> (c, <isectConstraints> (xs, ys))
-        where c := <filter(?(x, _) ; \ (_, t') -> CEq(t, t') \)> ys
-        
-    isectConstraints: (ys, zs) -> []
-    isectConstraints: (xs, ys, zs) -> <unions> [<isectConstraints> (xs, ys),
-                                                <isectConstraints> (ys, zs),
-                                                <isectConstraints> (xs, zs)]
-    isectConstraints = debug(!"isectConstraints: "); fail
+//     main = io-wrap(types)
+// 
+//     // applies an mgu to a type
+//     // (t, mgu) -> t
+//     app_mgu: (t, []) -> t
+//     app_mgu: (t, [(x, t')|mgu]) -> <app_mgu> (t1, mgu)
+//         where t1 := <tSubst> (x, t, t')
+//     app_mgu = debug(!"app_mgu: "); fail
+// 
+//     types: Module(x, e*) -> <map(\ (t, _, _, mgu) -> <app_mgu> (t, mgu)\)> t*
+//         where t* := <map(typeinfer)> e*
+//     types': Module(x, e*) -> <map(\ (t, _, _, mgu) -> <app_mgu> (t, mgu)\)> t*
+//         where t* := <map(typeinfer')> e*
+//     
+//     type: e -> <app_mgu> (t, mgu)
+//         where (t, _, _, mgu) := <typeinfer> e
+//     type': e -> <app_mgu> (t, mgu)
+//         where (t, _, _, mgu) := <typeinfer'> e
+// 
+//     typeinfer: Module(x, e*) -> t*
+//         where t* := <map(typeinfer)> e*
+//     typeinfer: e -> <if equal(|<length> b, 0) then !(t, c, b, mgu) else !"Unbound variable" end>
+//         where (t, c, b) := <bottomup(try(generateConstraints))> e;
+//               mgu       := <solveConstraints> c
+//     typeinfer = debug(!"typeinfer: "); fail
+//     
+//     typeinfer': Module(x, e*) -> <map(typeinfer')> e*
+//     typeinfer': e -> <if equal(|<length> b, 0) then !(t, c', b, mgu) else !"Unbound variable" end>
+//         where (t, c, b, mgu) := <bottomup(try(generateConstraints'))> e;
+//               c' := <map(\ CEq(t1, t2) -> CEq(<app_mgu> (t1, mgu), <app_mgu> (t2, mgu)) \)> c //map mgu over cs
+//               //(cs,mgu') := <unify> (c', mgu)
+//     typeinfer' = debug(!"typeinfer': "); fail
+// 
+//     gen = bottomup(try(generateConstraints))
+//     gen' = bottomup(try(generateConstraints'))
+// 
+//     generateConstraints: True() -> (Bool(), [], [])
+//     generateConstraints: False() -> (Bool(), [], [])
+//     generateConstraints: Num(_) -> (TNum(), [], [])
+//     generateConstraints: Not((t, c, b)) -> (Bool(), [CEq(t, Bool())|c], b)
+//     generateConstraints: And((t1, c1, b1), (t2, c2, b2)) -> (Bool(), c', b)
+//         where (b, c') := <merge> (b1, b2, <unions> [c1, c2, [CEq(Bool(), t1), CEq(Bool(), t2)]])
+//     generateConstraints: Add((t1, c1, b1), (t2, c2, b2)) -> (TNum(), c', b)
+//         where (b, c') := <merge> (b1, b2, <unions> [c1, c2, [CEq(TNum(), t1), CEq(TNum(), t2)]]) 
+//     generateConstraints: Gt((t1, c1, b1), (t2, c2, b2)) -> (Bool(), c', b)
+//         where (b, c') := <merge> (b1, b2, <unions> [c1, c2, [CEq(TNum(), t1), CEq(TNum(), t2)]]) 
+//     generateConstraints: Cond((tCond, cCond, bCond),
+//                               (tThen, cThen, bThen),
+//                               (tElse, cElse, bElse)) -> (tThen, c', b)
+//         where (b, c') := <merge> (bCond, bThen, bElse, <unions> [cCond, cThen, cElse
+//                                                                 ,[CEq(Bool(), tCond), CEq(tThen, tElse)]])
+//     generateConstraints: Var(x) -> (ty, [], [(x, ty)])
+//         where ty := TVar(<newname> "T")
+//     generateConstraints: App((t1, c1, b1), (t2, c2, b2)) -> (t, c', b)
+//         where t  := TVar(<newname> "T");
+//               (b, c') := <merge> (b1, b2, <unions> [c1, c2, [CEq(t1, Function(t2, t))]])
+//     generateConstraints: Abs(x, t, (t', c, b)) -> (Function(t, t'), <union> (c, <isectConstraints> ([(x, t)], b)), <filter(not(?(x, _)))> b)
+//     generateConstraints: Fix(x, t, (t', c, b)) -> (t, <union> (c, <isectConstraints> ([(x, t)], b)), <filter(not(?(x, _)))> b)
+//     generateConstraints: Let(x, t, (t1, c1, b1), (t2, c2, b2)) -> (t2, c', b')
+//         where (b', c') := <merge'> (b1, b2, (x, t), <unions> [c1, c2, [CEq(t, t1)]])
+// /////////////////////////////
+//     generateConstraints': True() -> (Bool(), [], [], [])
+//     generateConstraints': False() -> (Bool(), [], [], [])
+//     generateConstraints': Num(_) -> (TNum(), [], [], [])
+//     generateConstraints': Not((t, c, b, mgu)) -> (Bool(), cs, b', mgu')
+//         where (cs, mgu') := <unify'> ([CEq(t, Bool())|c], [], mgu);
+//               b'         := <map(\ (x, t) -> (x, <app_mgu> (t, mgu)) \)> b
+//     generateConstraints': And((t1, c1, b1, mgu1), (t2, c2, b2, mgu2)) -> (Bool(), cs, b, mgu)
+//         where (b, cs, mgu) := <mergeUnify> (b1, b2, mgu1, mgu2, <concat> [c1, c2, [CEq(Bool(), t1), CEq(Bool(), t2)]])
+//     generateConstraints': Add((t1, c1, b1, mgu1), (t2, c2, b2, mgu2)) -> (TNum(), cs, b, mgu)
+//         where (b, cs, mgu) := <mergeUnify> (b1, b2, mgu1, mgu2, <concat> [c1, c2, [CEq(TNum(), t1), CEq(TNum(), t2)]])
+//     generateConstraints': Gt((t1, c1, b1, mgu1), (t2, c2, b2, mgu2)) -> (Bool(), cs, b, mgu)
+//         where (b, cs, mgu) := <mergeUnify> (b1, b2, mgu1, mgu2, <concat> [c1, c2, [CEq(TNum(), t1), CEq(TNum(), t2)]])
+//     generateConstraints': Cond((tCond, cCond, bCond, mguCond),
+//                               (tThen, cThen, bThen, mguThen),
+//                               (tElse, cElse, bElse, mguElse)) -> (t, cs, b, mgu)
+//         where (b, cs, mgu) := <mergeUnify> (bCond, bThen, bElse, mguCond, mguThen, mguElse,
+//                                              <concat> [cCond, cThen, cElse, [CEq(Bool(), tCond), CEq(tThen, tElse)]]);
+//                t           := <app_mgu> (tThen, mgu)
+//     generateConstraints': Var(x) -> (ty, [], [(x, ty)], [])
+//         where ty := TVar(<newname> "T")
+//     generateConstraints': App((t1, c1, b1, mgu1), (t2, c2, b2, mgu2)) -> (t', cs, b, mgu)
+//         where t            := TVar(<newname> "T");
+//               (b, cs, mgu) := <mergeUnify> (b1, b2, mgu1, mgu2, <concat> [c1, c2, [CEq(t1, Function(t2, t))]]);
+//               t'           := <app_mgu> (t, mgu)
+//     generateConstraints': Abs(x, t1, (t2, c, binding, mgu)) -> (Function(t1', t2'), cs, <filter(not(?(x, _)))> b, mgu')
+//         where (b, cs, mgu') := <mergeUnify> ([(x, t1)], binding, mgu, [], c);
+//               (t1', t2')    := (<app_mgu> (t1, mgu'), <app_mgu> (t2, mgu'))
+//     generateConstraints': Fix(x, t1, (t2, c, b0, mgu)) -> (t1', cs, <filter(not(?(x, _)))> b, mgu')
+//         where (b, cs, mgu') := <mergeUnify> ([(x, t1)], b0, mgu, [], c);
+//               t1'           := <app_mgu> (t1, mgu')
+//     generateConstraints': Let(x, t, (t1, c1, b1, mgu1), (t2, c2, b2, mgu2)) -> (t2', cs, b, mgu)
+//         where (b, cs, mgu) := <mergeUnify> (b1, b2, (x, t), mgu1, mgu2, <concat> [c1, c2, [CEq(t, t1)]]);
+//               t2'          := <app_mgu> (t2, mgu)
+// 
+//     // (type, constraints) -> mgu
+//     solveConstraints: c -> mgu
+//        where (_, mgu) := <unify> (c, [])
+//     solveConstraints = debug(!"solveConstraints: "); fail
+// 
+//     // robinson: trivial, decompose, clash, orient, occur, varibale elimination
+//     //unify: (cs, mgu) -> (cs', mgu')
+//     unify: ([CEq(t, t)|cs], mgu) -> <unify> (cs, mgu) //trivial
+// 
+//     unify: ([CEq(Function(t1, t1'), Function(t2, t2'))|cs], mgu) -> <unify> (cs', mgu) // decompose 
+//         where cs' := <concat> [[CEq(t1, t2), CEq(t1', t2')], cs]
+// 
+//     // is there a way to check for equality of constructors?
+//     unify: ([CEq(Bool(), Function(_, _))|cs], mgu) -> <fail> // clash
+//     unify: ([CEq(Function(_, _), Bool())|cs], mgu) -> <fail>
+//     unify: ([CEq(TNum(), Bool())|cs], mgu)  -> <fail>
+//     unify: ([CEq(Bool(), TNum())|cs], mgu)  -> <fail>
+//     unify: ([CEq(Function(_, _), TNum())|cs], mgu)  -> <fail>
+//     unify: ([CEq(TNum(), Function(_, _))|cs], mgu)  -> <fail>
+// 
+//     unify: ([CEq(t, TVar(x))|cs], mgu) -> <unify> (<union> (cs, [CEq(TVar(x), t)]), mgu) // orient
+// 
+//     unify: ([CEq(TVar(x), t)|cs], mgu) -> <if <occurs> (x, t)
+//                                             then fail // x occurs in t
+//                                             else <unify> (cs', mgu') end> // variable elimination
+//         where cs'  := <map(\ CEq(t1, t2) -> CEq(<tSubst> (x, t1, t), <tSubst> (x, t2, t)) \)> cs; //map subst over cs
+//               mgu1 := <map(\ (y, t1) -> (y, <tSubst> (x, t1, t)) \)> mgu; //map subst over mgu
+//               mgu' := [(x, t)|mgu1]
+// 
+//     unify: ([], mgu) -> ([], mgu)
+//     unify = debug(!"unify"); fail
+//     
+//     ///////////////////////////
+//     //unify': goodConstraints, mediumConstraints, mgu -> mediumConstraints, mgu
+//     unify': ([CEq(t, t)|cs], mCs, mgu) -> <unify'> (cs, mCs, mgu) // trivial
+//     unify': ([CEq(Function(t1, t1'), Function(t2, t2'))|cs], mCs, mgu) -> <unify'> (cs', mCs, mgu) // decompose 
+//         where cs' := <concat> [[CEq(t1, t2), CEq(t1', t2')], cs]
+//     
+//     unify': ([CEq(Bool(), Function(_, _))|cs], mCs, mgu) -> <fail> // clash
+//     unify': ([CEq(Function(_, _), Bool())|cs], mCs, mgu) -> <fail>
+//     unify': ([CEq(TNum(), Bool())|cs], mCs, mgu)  -> <fail>
+//     unify': ([CEq(Bool(), TNum())|cs], mCs, mgu)  -> <fail>
+//     unify': ([CEq(Function(_, _), TNum())|cs], mCs, mgu)  -> <fail>
+//     unify': ([CEq(TNum(), Function(_, _))|cs], mCs, mgu)  -> <fail>
+//     
+//     unify': ([c@CEq(TVar(x), TVar(y))|cs], mCs, mgu) -> <unify'> (cs, [c|mCs], mgu) // T1 = T2 is skipped in intermediate unification
+//                                                                                     // so that there is no infinite orientation cycle
+//     unify': ([CEq(t, TVar(x))|cs], mCs, mgu) -> <unify'> ([CEq(TVar(x), t)|cs], mCs, mgu) // orient
+//     
+//     unify': ([CEq(TVar(x), t)|cs], mCs, mgu) -> <if <occurs> (x, t)
+//                                                     then fail
+//                                                     else <unify'> (cs', mCs', mgu')
+//                                                         end>
+//     where cs'  := <map(\ CEq(t1, t2) -> CEq(<tSubst> (x, t1, t), <tSubst> (x, t2, t)) \)> cs; //map subst over cs;
+//           mCs' := <map(\ CEq(t1, t2) -> CEq(<tSubst> (x, t1, t), <tSubst> (x, t2, t)) \)> mCs; //map subst over mCs;
+//           mgu1 := <map(\ (y, t1) -> (y, <tSubst> (x, t1, t)) \)> mgu; //map subst over mgu
+//           mgu' := [(x, t)|mgu1]
+//           
+//     unify': ([], mCs, mgu) -> (mCs, mgu)
+//     unify' = debug(!"unify"); fail
+//     
+//     // if var occurs in term true, else false 
+//     occurs: (var, Bool())          -> <fail>
+//     occurs: (var, TNum())          -> <fail>
+//     occurs: (var, TVar(var))       -> <id>
+//     occurs: (var, TVar(_))         -> <fail>
+//     occurs: (var, Function(t, t')) -> <if <occurs> (var, t)
+//                                         then id
+//                                         else <occurs> (var, t') end>
+//     // occurs = debug(!"occurs: ")
+// 
+//     // substitute x in t with t'
+//     tSubst: (x, Bool(), t')           -> Bool()
+//     tSubst: (x, TNum(), t')           -> TNum()
+//     tSubst: (x, Function(t1, t2), t') -> Function(t1', t2')
+//         where t1' := <tSubst> (x, t1, t');
+//               t2' := <tSubst> (x, t2, t')
+//     tSubst: (x, TVar(x), t')          -> t'
+//     tSubst: (x, TVar(y), t')          -> TVar(y)
+//     tSubst = debug(!"tSubst: "); fail
+// 
+//     // union of bindings and intersection of constraints in bindings
+//     // (bs, bs) -> (cs, bs)
+//     merge: (bs1, bs2, bs3, cs) -> (bs', cs')
+//         where bs' := <bUnion> (bs1, <bUnion> (bs2, bs3));
+//               cs' := <union> (cs, <isectConstraints> (bs1, bs2, bs3))
+//     merge: (bs1, bs2, cs) -> (bs', cs')
+//         where bs' := <bUnion> (bs1, bs2);
+//               cs' := <union> (cs, <isectConstraints> (bs1, bs2))
+//     merge': (bs1, bs2, b, cs) -> (bs', cs')
+//         where bs  := <bUnion> (bs1, bs2);
+//               bs' := <filter(not(?(x, _)))> bs;
+//               cs' := <union> (cs, <isectConstraints> ([b|bs1], bs2))
+//               
+//     merge  = debug(!"merge: "); fail
+//     merge' = debug(!"merge: "); fail
+//     
+//     mergeUnify: (b1, b2, mgu1, mgu2, cs) -> (b', cs', mgu)
+//         where (b, c)     := <merge> (b1, b2, cs);
+//               (cs', mgu) := <unify'> (c, [], <union> (mgu1, mgu2));
+//               b'         := <map(\ (x, t) -> (x, <app_mgu> (t, mgu)) \)> b
+//     mergeUnify: (b1, b2, b3, mgu1, mgu2, mgu3, cs) -> (b', cs', mgu)
+//         where (b, c)     := <merge> (b1, b2, b3, cs);
+//               (cs', mgu) := <unify'> (c, [], <unions> [mgu1, mgu2, mgu3]);
+//               b'         := <map(\ (x, t) -> (x, <app_mgu> (t, mgu)) \)> b
+//     mergeUnify: (b1, b2, binding, mgu1, mgu2, cs) -> (b', cs', mgu)
+//         where (b, c)     := <merge'> (b1, b2, binding, cs);
+//               (cs', mgu) := <unify'> (c, [], <union> (mgu1, mgu2));
+//               b'         := <map(\ (x, t) -> (x, <app_mgu> (t, mgu)) \)> b
+//     mergeUnify = debug(!"mergeUnify: "); fail
+// 
+//     //[B("x", "T1"), B("x", "T1123"), B("y", "T2"), B("y", "T1234")] -> [B("x", "T1"), B("y", "T2")]
+//     bUnion: (xs, ys) -> <bUnion> (<conc> (xs, ys))  
+//     bUnion: [] -> []
+//     bUnion: [(x, t)|bs] -> [(x, t)|<bUnion> bs']
+//         where bs' := <filter(not(?(x, _)))> bs
+//     bUnion = debug(!"bUnion: "); fail
+//     
+//     isectConstraints: ([], ys) -> []
+//     isectConstraints: ([(x, t)|xs], ys) -> <union> (c, <isectConstraints> (xs, ys))
+//         where c := <filter(?(x, _) ; \ (_, t') -> CEq(t, t') \)> ys
+//         
+//     isectConstraints: (ys, zs) -> []
+//     isectConstraints: (xs, ys, zs) -> <unions> [<isectConstraints> (xs, ys),
+//                                                 <isectConstraints> (ys, zs),
+//                                                 <isectConstraints> (xs, zs)]
+//     isectConstraints = debug(!"isectConstraints: "); fail

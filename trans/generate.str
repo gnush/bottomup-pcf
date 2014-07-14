@@ -6,6 +6,7 @@ imports
 	semantic/normalization
 	semantic/topdown
 	semantic/typecheck
+	semantic/typecheckErr
 
 rules 
 
