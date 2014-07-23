@@ -15,7 +15,7 @@ rules
     //               [("x", TVar("T1"))],
     //               [("x", TVar("T2")), ("z", Bool())]]; mk-isectCallData; map(isectConstraints); flatten-list
     
-    testt = !And(True(),False()); typeinfer'
+    testt = !Abs("x", Bool(), Var("x")); gen'
     
     // applies an mgu to a type
     // (t, mgu) -> t
@@ -162,7 +162,8 @@ rules
     //            (t1', t2')    := (<app_mgu> (t1, mgu'), <app_mgu> (t2, mgu'))
 
     generateConstraints': Abs(x, t1, (t2, c)) -> (Function(t1', t2'), cRes) // FIXME
-        where cRes := <mergeUnify> ([c], [], (x, t1));
+        where cNew := ([], [(x, t1)], [], []);
+              cRes := <mergeUnify> ([cNew, c], []);
               t1'  := <app_mgu> (t1, <mgu> cRes);
               t2'  := <app_mgu> (t2, <mgu> cRes)
 
@@ -287,16 +288,18 @@ rules
     // mergeUnify = debug(!"mergeUnify: "); fail
     
     // list, list -> generateRes
-    mergeUnify: (c, cs) -> (bindings', constraints', mgu, errs)
+    mergeUnify: (c, cs) -> (constraints', bindings', mgu, errs)
         where bindings    := <filter-bindings; flatten-list; bUnion> c;
               constraints := <conc> (cs, <filter-bindings; mk-isectCallData; map(isectConstraints); flatten-list> c);
-              (constraints', mgu, errs) := <unify'> (constraints, [], [], []); // (constraints, [], <filter-mgu; flatten-list> c, [])
+              errors      := <filter-errs; flatten-list> c;
+              (constraints', mgu, errs) := <unify'> (constraints, [], [], errors); // (constraints, [], <filter-mgu; flatten-list> c, [])
               bindings'   := <map(\ (x, t) -> (x, <app_mgu> (t, mgu)) \)> bindings
 
-    mergeUnify: (c, cs, binding) -> (bindings'', constraints', mgu, errs)
+    mergeUnify: (c, cs, binding) -> (constraints', bindings'', mgu, errs)
         where bindings    := <filter-bindings; flatten-list; bUnion> c;
               constraints := <conc> (cs, <filter-bindings; mk-isectCallData; map(isectConstraints); flatten-list> c);
-              (constraints', mgu, errs) := <unify'> (constraints, [], [], []); // (constraints, [], <filter-mgu; flatten-list> c, [])
+              errors      := <filter-errs; flatten-list> c;
+              (constraints', mgu, errs) := <unify'> (constraints, [], [], errors); // (constraints, [], <filter-mgu; flatten-list> c, [])
               (x, type)   := binding;
               bindings'  := <filter(not(?(x, _)))> bindings;
               bindings''   := <map(\ (x, t) -> (x, <app_mgu> (t, mgu)) \)> bindings'
