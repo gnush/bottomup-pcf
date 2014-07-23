@@ -15,7 +15,7 @@ rules
     //               [("x", TVar("T1"))],
     //               [("x", TVar("T2")), ("z", Bool())]]; mk-isectCallData; map(isectConstraints); flatten-list
     
-    testt = !Abs("x", Bool(), Var("x")); gen'
+    testt = !Abs("x", Bool(), Var("x")); typeinfer'
     
     // applies an mgu to a type
     // (t, mgu) -> t
@@ -156,18 +156,13 @@ rules
               cRes := <mergeUnify> ([c1, c2], cs);
               tRes := <app_mgu> (t, <mgu> cRes)
 
-
-    // generateConstraints': Abs(x, t1, (t2, (c, binding, mgu, err))) -> (Function(t1', t2'), (cs, <filter(not(?(x, _)))> b, mgu', <union> (err, errs)))
-    //      where (b, cs, mgu', errs) := <mergeUnify> ([(x, t1)], binding, mgu, [], c);
-    //            (t1', t2')    := (<app_mgu> (t1, mgu'), <app_mgu> (t2, mgu'))
-
-    generateConstraints': Abs(x, t1, (t2, c)) -> (Function(t1', t2'), cRes) // FIXME
+    generateConstraints': Abs(x, t1, (t2, c)) -> (Function(t1', t2'), cRes) // TODO: put new result set generation in mergin process
         where cNew := ([], [(x, t1)], [], []);
-              cRes := <mergeUnify> ([cNew, c], []);
+              cRes := <mergeUnify> ([cNew, c], [], (x, t1));
               t1'  := <app_mgu> (t1, <mgu> cRes);
               t2'  := <app_mgu> (t2, <mgu> cRes)
 
-    generateConstraints': Fix(x, t1, (t2, c)) -> (t1', cRes)
+    generateConstraints': Fix(x, t1, (t2, c)) -> (t1', cRes) // FIXME like above
         where cRes := <mergeUnify> ([c], [], (x, t1));
               t1'  := <app_mgu> (t1, <mgu> cRes)
 
@@ -287,7 +282,7 @@ rules
     //           b'         := <map(\ (x, t) -> (x, <app_mgu> (t, mgu)) \)> b
     // mergeUnify = debug(!"mergeUnify: "); fail
     
-    // list, list -> generateRes
+    // list, list -> resultSet
     mergeUnify: (c, cs) -> (constraints', bindings', mgu, errs)
         where bindings    := <filter-bindings; flatten-list; bUnion> c;
               constraints := <conc> (cs, <filter-bindings; mk-isectCallData; map(isectConstraints); flatten-list> c);
@@ -295,13 +290,13 @@ rules
               (constraints', mgu, errs) := <unify'> (constraints, [], [], errors); // (constraints, [], <filter-mgu; flatten-list> c, [])
               bindings'   := <map(\ (x, t) -> (x, <app_mgu> (t, mgu)) \)> bindings
 
-    mergeUnify: (c, cs, binding) -> (constraints', bindings'', mgu, errs)
+    // list, list, (var, type) -> resultSet
+    mergeUnify: (c, cs, (x, t)) -> (constraints', bindings'', mgu, errs)
         where bindings    := <filter-bindings; flatten-list; bUnion> c;
               constraints := <conc> (cs, <filter-bindings; mk-isectCallData; map(isectConstraints); flatten-list> c);
               errors      := <filter-errs; flatten-list> c;
               (constraints', mgu, errs) := <unify'> (constraints, [], [], errors); // (constraints, [], <filter-mgu; flatten-list> c, [])
-              (x, type)   := binding;
-              bindings'  := <filter(not(?(x, _)))> bindings;
+              bindings'  := <remove-all(?(x, _))> bindings;
               bindings''   := <map(\ (x, t) -> (x, <app_mgu> (t, mgu)) \)> bindings'
               
     mergeUnify = debug(!"mergeUnify: "); fail
