@@ -162,7 +162,7 @@ rules
               t1'  := <app_mgu> (t1, <mgu> cRes);
               t2'  := <app_mgu> (t2, <mgu> cRes)
 
-    generateConstraints': Fix(x, t1, (t2, c)) -> (t1', cRes) // FIXME like above
+    generateConstraints': Fix(x, t1, (t2, c)) -> (t1', cRes) // FIXME like above  .... the unbound var message is gone in typechecking, why?
         where cRes := <mergeUnify> ([c], [], (x, t1));
               t1'  := <app_mgu> (t1, <mgu> cRes)
 
