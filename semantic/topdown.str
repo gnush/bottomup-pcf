@@ -5,6 +5,8 @@ imports
 
 rules
 	main = io-wrap(tCheck)
+	
+	typetest = !(Var("x"), []); check
 
     tCheck: Module(x, e*) -> <map(tCheck)> e*
     tCheck: e -> <check> (e, [])
@@ -46,7 +48,7 @@ rules
     //          tThen := <check> (then, ctx);
     //          tElse := <check> (else, ctx)
 
-    check: (Var(x), ctx)       -> <lookup <+ <error> ["Unbound variable"]; fail> (x, ctx)
+    check: (Var(x), ctx)       -> <lookup <+ !"Unbound variable"> (x, ctx)
     check: (Abs(x, t, e), ctx) -> Function(t, t')
         with t' := <check> (e, [(x, t)|ctx])
     check: (App(e1, e2), ctx)  -> <if equal(|t1, t3)

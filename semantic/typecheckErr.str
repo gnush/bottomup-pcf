@@ -29,9 +29,14 @@ rules
 
     typeinfer: Module(x, e*) -> t*
         where t* := <map(typeinfer)> e*
-    typeinfer: e -> <if equal(|<length> b, 0) then !(t, c, b, mgu) else !"Unbound variable" end>
-        where (t, c, b) := <bottomup(try(generateConstraints))> e;
-              mgu       := <solveConstraints> c
+    typeinfer: e -> <if equal(|<length> b, 0)
+                        then if equal(|<length> errs, 0)
+                                then !(t, c, b, mgu)
+                                else !errs
+                                    end
+                        else !["Unbound variable"|errs] end>
+        where (t, c, b)   := <bottomup(try(generateConstraints))> e;
+              (mgu, errs) := <solveConstraints> c
     typeinfer = debug(!"typeinfer: "); fail
     
     typeinfer': Module(x, e*) -> <map(typeinfer')> e*
@@ -62,7 +67,7 @@ rules
                               (tThen, cThen, bThen),
                               (tElse, cElse, bElse)) -> (tThen, c', b)
         where (b, c') := <merge> (bCond, bThen, bElse, <unions> [cCond, cThen, cElse
-                                                                ,[CEqErr(Bool(), tCond, "Cond type"), CEqErr(tThen, tElse, "branch types don't match")]])
+                                                                ,[CEqErr(Bool(), tCond, "Cond type"), CEqErr(tThen, tElse, "branch types does not match")]])
     generateConstraints: Var(x) -> (ty, [], [(x, ty)])
         where ty := TVar(<newname> "T")
     generateConstraints: App((t1, c1, b1), (t2, c2, b2)) -> (t, c', b)
@@ -91,6 +96,15 @@ rules
         where (b, cs, mgu, errs) := <mergeUnify> (bCond, bThen, bElse, mguCond, mguThen, mguElse,
                                              <concat> [cCond, cThen, cElse, [CEqErr(Bool(), tCond, "Cond type"), CEqErr(tThen, tElse, "branch mismatch")]]);
                t           := <app_mgu> (tThen, mgu)
+    
+    generateConstraints': 
+        Cond((tCond, cCond), (tThen, cThen), (tElse, cElse)) -> 
+        (tRes, cRes) // cs, b, mgu, <unions> [errCond, errThen, errElse, errs])
+        where  c1 := CEqErr(Bool(), tCond, "Cond type");
+               c2 := CEqErr(tThen, tElse, "branch mismatch");
+               cRes := <mergeUnify> ([cCond, cThen, CElse], [c1, c2]);
+               tRes := <app_mgu> (tThen, <mgu> cRes)
+    
     generateConstraints': Var(x) -> (ty, [], [(x, ty)], [], [])
         where ty := TVar(<newname> "T")
     generateConstraints': App((t1, c1, b1, mgu1, err1), (t2, c2, b2, mgu2, err2)) -> (t', cs, b, mgu, <unions> [err1, err2, errs])
@@ -108,35 +122,35 @@ rules
               t2'          := <app_mgu> (t2, mgu)
 
     // (type, constraints) -> mgu
-    solveConstraints: c -> mgu
-       where (_, mgu) := <unify> (c, [])
+    solveConstraints: c -> (mgu, errs)
+       where (_, mgu, errs) := <unify> (c, [], [])
     solveConstraints = debug(!"solveConstraints: "); fail
 
     // robinson: trivial, decompose, clash, orient, occur, varibale elimination
     //unify: (cs, mgu) -> (cs', mgu')
-    unify: ([CEqErr(t, t, _)|cs], mgu) -> <unify> (cs, mgu) //trivial
+    unify: ([CEqErr(t, t, _)|cs], mgu, err) -> <unify> (cs, mgu, err) //trivial
 
-    unify: ([CEqErr(Function(t1, t1'), Function(t2, t2'), err)|cs], mgu) -> <unify> (cs', mgu) // decompose 
+    unify: ([CEqErr(Function(t1, t1'), Function(t2, t2'), err)|cs], mgu, errs) -> <unify> (cs', mgu, errs) // decompose 
         where cs' := <concat> [[CEqErr(t1, t2, err), CEqErr(t1', t2', err)], cs]
 
     // is there a way to check for equality of constructors?
-    unify: ([CEqErr(Bool(), Function(_, _), _)|cs], mgu) -> <fail> // clash
-    unify: ([CEqErr(Function(_, _), Bool(), _)|cs], mgu) -> <fail>
-    unify: ([CEqErr(TNum(), Bool(), _)|cs], mgu)  -> <fail>
-    unify: ([CEqErr(Bool(), TNum(), _)|cs], mgu)  -> <fail>
-    unify: ([CEqErr(Function(_, _), TNum(), _)|cs], mgu)  -> <fail>
-    unify: ([CEqErr(TNum(), Function(_, _), _)|cs], mgu)  -> <fail>
+    unify: ([CEqErr(Bool(), Function(_, _), err)|cs], mgu, errs) -> <unify> (cs, mgu, [err|errs]) // clash
+    unify: ([CEqErr(Function(_, _), Bool(), err)|cs], mgu, errs) -> <unify> (cs, mgu, [err|errs])
+    unify: ([CEqErr(TNum(), Bool(), err)|cs], mgu, errs)  -> <unify> (cs, mgu, [err|errs])
+    unify: ([CEqErr(Bool(), TNum(), err)|cs], mgu, errs)  -> <unify> (cs, mgu, [err|errs])
+    unify: ([CEqErr(Function(_, _), TNum(), err)|cs], mgu, errs)  -> <unify> (cs, mgu, [err|errs])
+    unify: ([CEqErr(TNum(), Function(_, _), err)|cs], mgu, errs)  -> <unify> (cs, mgu, [err|errs])
 
-    unify: ([CEqErr(t, TVar(x), err)|cs], mgu) -> <unify> (<union> (cs, [CEqErr(TVar(x), t, err)]), mgu) // orient
+    unify: ([CEqErr(t, TVar(x), err)|cs], mgu, errs) -> <unify> (<union> (cs, [CEqErr(TVar(x), t, err)]), mgu, errs) // orient
 
-    unify: ([CEqErr(TVar(x), t, err)|cs], mgu) -> <if <occurs> (x, t)
-                                                    then fail // x occurs in t
-                                                    else <unify> (cs', mgu') end> // variable elimination
+    unify: ([CEqErr(TVar(x), t, err)|cs], mgu, errs) -> <if <occurs> (x, t)
+                                                            then <unify> (cs, mgu, [err|errs]) // x occurs in t
+                                                            else <unify> (cs', mgu', errs) end> // variable elimination
         where cs'  := <map(\ CEqErr(t1, t2, err) -> CEqErr(<tSubst> (x, t1, t), <tSubst> (x, t2, t), err) \)> cs; //map subst over cs
               mgu1 := <map(\ (y, t1) -> (y, <tSubst> (x, t1, t)) \)> mgu; //map subst over mgu
               mgu' := [(x, t)|mgu1]
 
-    unify: ([], mgu) -> ([], mgu)
+    unify: ([], mgu, err) -> ([], mgu, err)
     unify = debug(!"unify"); fail
     
     ///////////////////////////
