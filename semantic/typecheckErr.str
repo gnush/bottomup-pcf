@@ -126,22 +126,25 @@ rules
         
         
     generateConstraints': And((t1, c1), (t2, c2)) -> (Bool(), cRes)
-        where cs   := [CEqErr(Bool(), t1, "And fst"), CEqErr(Bool(), t2, "And snd")];
+        where cs   := [<mk-error-constraint> (Bool(), t1, "first argument of And"),
+                       <mk-error-constraint> (Bool(), t2, "second argument of And")];
               cRes := <mergeUnify> ([c1, c2], cs)
 
     generateConstraints': Add((t1, c1), (t2, c2)) -> (TNum(), cRes)
-        where cs   := [CEqErr(TNum(), t1, "Add fst"), CEqErr(TNum(), t2, "Add snd")];
+        where cs   := [<mk-error-constraint> (TNum(), t1, "first argument of Add"),
+                       <mk-error-constraint> (TNum(), t2, "second argument of Add")];
               cRes := <mergeUnify> ([c1, c2], cs)
 
     generateConstraints': Gt((t1, c1), (t2, c2)) -> (Bool(), cRes)
-        where cs   := [CEqErr(TNum(), t1, "Gt fst"), CEqErr(TNum(), t2, "Gt snd")];
+        where cs   := [<mk-error-constraint> (TNum(), t1, "first argument of Gt"),
+                       <mk-error-constraint> (TNum(), t2, "second argument of Gt")];
               cRes := <mergeUnify> ([c1, c2], cs)    
     
     generateConstraints': 
         Cond((tCond, cCond), (tThen, cThen), (tElse, cElse)) -> 
         (tRes, cRes) // cs, b, mgu, <unions> [errCond, errThen, errElse, errs])
-        where  c1 := CEqErr(Bool(), tCond, "Cond type");
-               c2 := CEqErr(tThen, tElse, "branch mismatch");
+        where  c1 := <mk-error-constraint> (Bool(), tCond, "condition of If statement");
+               c2 := <mk-error-constraint> (tThen, tElse, "branch of If statement");
                cRes := <mergeUnify> ([cCond, cThen, cElse], [c1, c2]);
                tRes := <app_mgu> (tThen, <mgu> cRes)
                
@@ -150,7 +153,7 @@ rules
 
     generateConstraints': App((t1, c1), (t2, c2)) -> (tRes, cRes)
         where t    := TVar(<newname> "T");
-              cs   := [CEqErr(t1, Function(t2, t), "apply to function")];
+              cs   := [<mk-error-constraint> (t1, Function(t2, t), "function application")];
               cRes := <mergeUnify> ([c1, c2], cs);
               tRes := <app_mgu> (t, <mgu> cRes)
 
@@ -164,7 +167,7 @@ rules
               t1'  := <app_mgu> (t1, <mgu> cRes)
 
     generateConstraints': Let(x, t, (t1, c1), (t2, c2)) -> (t2', cRes)  // TODO: check (done, seems working)
-        where cs   := [CEqErr(t, t1, "actual type doesn't match denoted type")];
+        where cs   := [<mk-error-constraint> (t, t1, "binding of Let")];
               cRes := <mergeUnify> ([c1, c2], cs, (x, t));
               t2'  := <app_mgu> (t2, <mgu> cRes)
 
@@ -319,9 +322,10 @@ rules
     
     // expected, actual, node -> constraint with error message
     // type, type, string -> CEqErr
-    mk-error-constraints: (expected, actual, node) -> CEqErr(expected, actual, err)
+    mk-error-constraint: (expected, actual, node) -> CEqErr(expected, actual, err)
         where err := <concat-strings> ["Expected ",
                                        <write-to-string> expected,
                                        " but got ",
                                        <write-to-string> actual,
                                        " in ", node]
+    
