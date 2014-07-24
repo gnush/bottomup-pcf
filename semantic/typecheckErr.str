@@ -324,8 +324,12 @@ rules
     // type, type, string -> CEqErr
     mk-error-constraint: (expected, actual, node) -> CEqErr(expected, actual, err)
         where err := <concat-strings> ["Expected ",
-                                       <write-to-string> expected,
+                                       <type-to-string> expected,
                                        " but got ",
-                                       <write-to-string> actual,
+                                       <type-to-string> actual,
                                        " in ", node]
     
+    type-to-string: Bool() -> "Bool"
+    type-to-string: TNum() -> "Num"
+    type-to-string: Function(t1, t2) -> <concat-strings> ["(", <type-to-string> t1, " -> ", <type-to-string> t2, ")"]
+    type-to-string: TVar(t) -> t
