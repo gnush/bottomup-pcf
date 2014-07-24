@@ -13,8 +13,6 @@ signature constructors
 rules
     main = io-wrap(types)
     
-    testt = !Abs("x", Bool(), Var("x")); typeinfer'
-    
     // applies an mgu to a type
     // (t, mgu) -> t
     app_mgu: (t, []) -> t
@@ -86,39 +84,6 @@ rules
     generateConstraints: Let(x, t, (t1, c1, b1), (t2, c2, b2)) -> (t2, c', b')
         where (b', c') := <merge'> (b1, b2, (x, t), <unions> [c1, c2, [CEqErr(t, t1, "Actual type does not match denoted type")]])
 /////////////////////////////
-    // generateConstraints': True() -> (Bool(), [], [], [], [])
-    // generateConstraints': False() -> (Bool(), [], [], [], [])
-    // generateConstraints': Num(_) -> (TNum(), [], [], [], [])
-    // generateConstraints': Not((t, c, b, mgu, err)) -> (Bool(), cs, b', mgu', <union> (err, errs))
-    //     where (cs, mgu', errs) := <unify'> ([CEqErr(t, Bool(), "Not arg type not Bool")|c], [], mgu, []);
-    //           b'         := <map(\ (x, t) -> (x, <app_mgu> (t, mgu)) \)> b
-    // generateConstraints': And((t1, c1, b1, mgu1, err1), (t2, c2, b2, mgu2, err2)) -> (Bool(), cs, b, mgu, <unions> [err1, err2, errs])
-    //     where (b, cs, mgu, errs) := <mergeUnify> (b1, b2, mgu1, mgu2, <concat> [c1, c2, [CEqErr(Bool(), t1, "And fst"), CEqErr(Bool(), t2, "And snd")]])
-    // generateConstraints': Add((t1, c1, b1, mgu1, err1), (t2, c2, b2, mgu2, err2)) -> (TNum(), cs, b, mgu, <unions> [err1, err2, errs])
-    //     where (b, cs, mgu, errs) := <mergeUnify> (b1, b2, mgu1, mgu2, <concat> [c1, c2, [CEqErr(TNum(), t1, "Add fst"), CEqErr(TNum(), t2, "Add snd")]])
-    // generateConstraints': Gt((t1, c1, b1, mgu1, err1), (t2, c2, b2, mgu2, err2)) -> (Bool(), cs, b, mgu, <unions> [err1, err2, errs])
-    //     where (b, cs, mgu, errs) := <mergeUnify> (b1, b2, mgu1, mgu2, <concat> [c1, c2, [CEqErr(TNum(), t1, "Gt fst"), CEqErr(TNum(), t2, "Gt snd")]])
-    // generateConstraints': Cond((tCond, cCond, bCond, mguCond, errCond),
-    //                           (tThen, cThen, bThen, mguThen, errThen),
-    //                           (tElse, cElse, bElse, mguElse, errElse)) -> (t, cs, b, mgu, <unions> [errCond, errThen, errElse, errs])
-    //     where (b, cs, mgu, errs) := <mergeUnify> (bCond, bThen, bElse, mguCond, mguThen, mguElse,
-    //                                          <concat> [cCond, cThen, cElse, [CEqErr(Bool(), tCond, "Cond type"), CEqErr(tThen, tElse, "branch mismatch")]]);
-    //            t           := <app_mgu> (tThen, mgu)    
-    // generateConstraints': Var(x) -> (ty, [], [(x, ty)], [], [])
-    //     where ty := TVar(<newname> "T")
-    // generateConstraints': App((t1, c1, b1, mgu1, err1), (t2, c2, b2, mgu2, err2)) -> (t', cs, b, mgu, <unions> [err1, err2, errs])
-    //     where t            := TVar(<newname> "T");
-    //           (b, cs, mgu, errs) := <mergeUnify> (b1, b2, mgu1, mgu2, <concat> [c1, c2, [CEqErr(t1, Function(t2, t), "apply to function")]]);
-    //           t'           := <app_mgu> (t, mgu)
-    // generateConstraints': Abs(x, t1, (t2, c, binding, mgu, err)) -> (Function(t1', t2'), cs, <filter(not(?(x, _)))> b, mgu', <union> (err, errs))
-    //     where (b, cs, mgu', errs) := <mergeUnify> ([(x, t1)], binding, mgu, [], c);
-    //           (t1', t2')    := (<app_mgu> (t1, mgu'), <app_mgu> (t2, mgu'))
-    // generateConstraints': Fix(x, t1, (t2, c, b0, mgu, err)) -> (t1', cs, <filter(not(?(x, _)))> b, mgu', <union> (err, errs))
-    //     where (b, cs, mgu', errs) := <mergeUnify> ([(x, t1)], b0, mgu, [], c);
-    //           t1'           := <app_mgu> (t1, mgu')
-    // generateConstraints': Let(x, t, (t1, c1, b1, mgu1, err1), (t2, c2, b2, mgu2, err2)) -> (t2', cs, b, mgu, <unions> [err1, err2, errs])
-    //     where (b, cs, mgu, errs) := <mergeUnify> (b1, b2, (x, t), mgu1, mgu2, <concat> [c1, c2, [CEqErr(t, t1, "actual type doesn't match denoted type")]]);
-    //           t2'          := <app_mgu> (t2, mgu)
     generateConstraints': True() -> (Bool(), ([], [], [], []))
     generateConstraints': False() -> (Bool(), ([], [], [], []))
     generateConstraints': Num(_) -> (TNum(), ([], [], [], []))
@@ -343,7 +308,3 @@ rules
     //                                                       <foldl(\ (xs, (x, _)) -> <concat-strings> [x, ", ", xs] \)> (bindings, ""))
     mk-unbound-vars-message: bindings -> <conc-strings>  ("Unbound variables",
                                                           <foldl(\ (x, xs) -> <concat-strings> [xs, " ", <Fst> x] \)> (bindings, ""))
-    
-    testfold1 = !(["a", "b", "c"], ""); foldl(\ (xs, x) -> <conc-strings> (x, xs) \)
-    testfold2 = !([("a", "foo"), ("b", "foo"), ("c", "foo")], ""); foldl(\ ((x, _), xs) -> <conc-strings> (xs, x) \)
-    testunbound = ![("x", "foo"), ("y", "foo")]; mk-unbound-vars-message
