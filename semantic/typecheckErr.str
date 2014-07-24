@@ -1,5 +1,8 @@
 module typecheckErr
 
+// TODO:
+//   - better error messages
+
 imports
     include/TypedLambda
 
@@ -9,11 +12,6 @@ signature constructors
     
 rules
     main = io-wrap(types)
-    
-    // testisect = ![[("x", Bool()), ("y", Bool())],
-    //               [("x", Bool()), ("y", TVar("T3"))],
-    //               [("x", TVar("T1"))],
-    //               [("x", TVar("T2")), ("z", Bool())]]; mk-isectCallData; map(isectConstraints); flatten-list
     
     testt = !Abs("x", Bool(), Var("x")); typeinfer'
     
@@ -182,7 +180,7 @@ rules
     unify: ([CEqErr(Function(t1, t1'), Function(t2, t2'), err)|cs], mgu, errs) -> <unify> (cs', mgu, errs) // decompose 
         where cs' := <concat> [[CEqErr(t1, t2, err), CEqErr(t1', t2', err)], cs]
 
-    // is there a way to check for equality of constructors?
+    // is there a way to check for equality of constructors before match?
     unify: ([CEqErr(Bool(), Function(_, _), err)|cs], mgu, errs) -> <unify> (cs, mgu, [err|errs]) // clash
     unify: ([CEqErr(Function(_, _), Bool(), err)|cs], mgu, errs) -> <unify> (cs, mgu, [err|errs])
     unify: ([CEqErr(TNum(), Bool(), err)|cs], mgu, errs)  -> <unify> (cs, mgu, [err|errs])
@@ -266,20 +264,6 @@ rules
               
     merge  = debug(!"merge: "); fail
     merge' = debug(!"merge: "); fail
-    
-    // mergeUnify: (b1, b2, mgu1, mgu2, cs) -> (b', cs', mgu, errs)
-    //     where (b, c)     := <merge> (b1, b2, cs);
-    //           (cs', mgu, errs) := <unify'> (c, [], <union> (mgu1, mgu2), []);
-    //           b'         := <map(\ (x, t) -> (x, <app_mgu> (t, mgu)) \)> b
-    // mergeUnify: (b1, b2, b3, mgu1, mgu2, mgu3, cs) -> (b', cs', mgu, errs)
-    //     where (b, c)     := <merge> (b1, b2, b3, cs);
-    //           (cs', mgu, errs) := <unify'> (c, [], <unions> [mgu1, mgu2, mgu3], []);
-    //           b'         := <map(\ (x, t) -> (x, <app_mgu> (t, mgu)) \)> b
-    // mergeUnify: (b1, b2, binding, mgu1, mgu2, cs) -> (b', cs', mgu, errs)
-    //     where (b, c)     := <merge'> (b1, b2, binding, cs);
-    //           (cs', mgu, errs) := <unify'> (c, [], <union> (mgu1, mgu2), []);
-    //           b'         := <map(\ (x, t) -> (x, <app_mgu> (t, mgu)) \)> b
-    // mergeUnify = debug(!"mergeUnify: "); fail
     
     // list, list -> resultSet
     mergeUnify: (c, cs) -> (constraints', bindings', mgu, errs)
