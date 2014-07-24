@@ -316,3 +316,6 @@ rules
     filter-constraints = map(constraints)
     filter-mgu = map(mgu)
     filter-errs = map(errs)
+    
+    // expected, actual, node -> constraint with error message
+    mk-error-constraints = id
