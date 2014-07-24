@@ -22,6 +22,9 @@ rules
         where t1 := <tSubst> (x, t, t')
     app_mgu = debug(!"app_mgu: "); fail
 
+    readable-types = types; map(type-to-string)
+    readable-types' = types'; map(type-to-string)
+
     types: Module(x, e*) -> <map(\ (t, _, _, mgu) -> <app_mgu> (t, mgu)\)> t*
         where t* := <map(typeinfer)> e*
     types': Module(x, e*) -> <map(\ (t, _, _, mgu) -> <app_mgu> (t, mgu)\)> t*
@@ -49,7 +52,7 @@ rules
                                                         then !(t, c', b, mgu)
                                                         else !errs
                                                             end
-                                               else !["Unbound variable"|errs] end>
+                                               else ![<mk-unbound-vars-message> b|errs] end>
         where (t, (c, b, mgu, errs)) := <bottomup(try(generateConstraints'))> e;
               c' := <map(\ CEqErr(t1, t2, err) -> CEqErr(<app_mgu> (t1, mgu), <app_mgu> (t2, mgu), err) \)> c //map mgu over cs
               //(cs,mgu') := <unify> (c', mgu)
@@ -303,7 +306,7 @@ rules
     
     isectConstraints: ([], ys) -> []
     isectConstraints: ([(x, t)|xs], ys) -> <union> (c, <isectConstraints> (xs, ys))
-        where c := <filter(?(x, _) ; \ (_, t') -> CEqErr(t, t', "variable binding") \)> ys
+        where c := <filter(?(x, _) ; \ (_, t') -> <mk-error-constraint> (t, t', <conc-strings> ("variable binding of ", x)) \)> ys
         
     //isectConstraints: (ys, zs) -> []
     isectConstraints: (xs, ys, zs) -> <concat> [<isectConstraints> (xs, ys),
@@ -333,3 +336,14 @@ rules
     type-to-string: TNum() -> "Num"
     type-to-string: Function(t1, t2) -> <concat-strings> ["(", <type-to-string> t1, " -> ", <type-to-string> t2, ")"]
     type-to-string: TVar(t) -> t
+    
+    // bindings -> error message
+    // list of tuples -> string
+    // mk-unbound-vars-message: bindings -> <conc-strings>  ("Unbound variables ",
+    //                                                       <foldl(\ (xs, (x, _)) -> <concat-strings> [x, ", ", xs] \)> (bindings, ""))
+    mk-unbound-vars-message: bindings -> <conc-strings>  ("Unbound variables",
+                                                          <foldl(\ (x, xs) -> <concat-strings> [xs, " ", <Fst> x] \)> (bindings, ""))
+    
+    testfold1 = !(["a", "b", "c"], ""); foldl(\ (xs, x) -> <conc-strings> (x, xs) \)
+    testfold2 = !([("a", "foo"), ("b", "foo"), ("c", "foo")], ""); foldl(\ ((x, _), xs) -> <conc-strings> (xs, x) \)
+    testunbound = ![("x", "foo"), ("y", "foo")]; mk-unbound-vars-message
