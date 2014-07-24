@@ -318,4 +318,10 @@ rules
     filter-errs = map(errs)
     
     // expected, actual, node -> constraint with error message
-    mk-error-constraints = id
+    // type, type, string -> CEqErr
+    mk-error-constraints: (expected, actual, node) -> CEqErr(expected, actual, err)
+        where err := <concat-strings> ["Expected ",
+                                       <write-to-string> expected,
+                                       " but got ",
+                                       <write-to-string> actual,
+                                       " in ", node]
