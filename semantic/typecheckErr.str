@@ -156,17 +156,16 @@ rules
               cRes := <mergeUnify> ([c1, c2], cs);
               tRes := <app_mgu> (t, <mgu> cRes)
 
-    generateConstraints': Abs(x, t1, (t2, c)) -> (Function(t1', t2'), cRes) // TODO: put new result set generation in mergin process
-        where cNew := ([], [(x, t1)], [], []);
-              cRes := <mergeUnify> ([cNew, c], [], (x, t1));
+    generateConstraints': Abs(x, t1, (t2, c)) -> (Function(t1', t2'), cRes)
+        where cRes := <mergeUnify> ([c], [], (x, t1));
               t1'  := <app_mgu> (t1, <mgu> cRes);
               t2'  := <app_mgu> (t2, <mgu> cRes)
 
-    generateConstraints': Fix(x, t1, (t2, c)) -> (t1', cRes) // FIXME like above  .... the unbound var message is gone in typechecking, why?
+    generateConstraints': Fix(x, t1, (t2, c)) -> (t1', cRes)
         where cRes := <mergeUnify> ([c], [], (x, t1));
               t1'  := <app_mgu> (t1, <mgu> cRes)
 
-    generateConstraints': Let(x, t, (t1, c1), (t2, c2)) -> (t2', cRes)
+    generateConstraints': Let(x, t, (t1, c1), (t2, c2)) -> (t2', cRes)  // TODO: check (done, seems working)
         where cs   := [CEqErr(t, t1, "actual type doesn't match denoted type")];
               cRes := <mergeUnify> ([c1, c2], cs, (x, t));
               t2'  := <app_mgu> (t2, <mgu> cRes)
@@ -285,19 +284,21 @@ rules
     // list, list -> resultSet
     mergeUnify: (c, cs) -> (constraints', bindings', mgu, errs)
         where bindings    := <filter-bindings; flatten-list; bUnion> c;
-              constraints := <conc> (cs, <filter-bindings; mk-isectCallData; map(isectConstraints); flatten-list> c);
+              constraints := <conc> (cs, <filter-bindings; mk-isectCallList; map(isectConstraints); flatten-list> c);
               errors      := <filter-errs; flatten-list> c;
               (constraints', mgu, errs) := <unify'> (constraints, [], [], errors); // (constraints, [], <filter-mgu; flatten-list> c, [])
               bindings'   := <map(\ (x, t) -> (x, <app_mgu> (t, mgu)) \)> bindings
 
     // list, list, (var, type) -> resultSet
     mergeUnify: (c, cs, (x, t)) -> (constraints', bindings'', mgu, errs)
-        where bindings    := <filter-bindings; flatten-list; bUnion> c;
-              constraints := <conc> (cs, <filter-bindings; mk-isectCallData; map(isectConstraints); flatten-list> c);
-              errors      := <filter-errs; flatten-list> c;
-              (constraints', mgu, errs) := <unify'> (constraints, [], [], errors); // (constraints, [], <filter-mgu; flatten-list> c, [])
-              bindings'  := <remove-all(?(x, _))> bindings;
-              bindings''   := <map(\ (x, t) -> (x, <app_mgu> (t, mgu)) \)> bindings'
+        where cNew := ([], [(x, t)], [], []);
+              c'   := [cNew|c];
+              bindings    := <filter-bindings; flatten-list; bUnion> c';
+              bindings'   := <remove-all(?(x, _))> bindings;
+              constraints := <conc> (cs, <filter-bindings; mk-isectCallList; map(isectConstraints); flatten-list> c');
+              errors      := <filter-errs; flatten-list> c';
+              (constraints', mgu, errs) := <unify'> (constraints, [], [], errors);
+              bindings''  := <map(\ (x, t) -> (x, <app_mgu> (t, mgu)) \)> bindings'
               
     mergeUnify = debug(!"mergeUnify: "); fail
 
@@ -308,20 +309,20 @@ rules
         where bs' := <filter(not(?(x, _)))> bs
     bUnion = debug(!"bUnion: "); fail
     
-    mk-isectCallData: [] -> []
-    mk-isectCallData: [x|xs] -> <conc> (<mk-tuples> (x, xs), <mk-isectCallData> xs)
+    mk-tuples: (elem, list) -> <map(\ x -> (elem, x) \)> list
+    
+    mk-isectCallList: [] -> []
+    mk-isectCallList: [x|xs] -> <conc> (<mk-tuples> (x, xs), <mk-isectCallList> xs)
     
     isectConstraints: ([], ys) -> []
     isectConstraints: ([(x, t)|xs], ys) -> <union> (c, <isectConstraints> (xs, ys))
         where c := <filter(?(x, _) ; \ (_, t') -> CEqErr(t, t', "variable binding") \)> ys
         
     //isectConstraints: (ys, zs) -> []
-    isectConstraints: (xs, ys, zs) -> <unions> [<isectConstraints> (xs, ys),
+    isectConstraints: (xs, ys, zs) -> <concat> [<isectConstraints> (xs, ys),
                                                 <isectConstraints> (ys, zs),
                                                 <isectConstraints> (xs, zs)]
     isectConstraints = debug(!"isectConstraints: "); fail
-    
-    mk-tuples: (elem, list) -> <map(\ x -> (elem, x) \)> list
     
     constraints: (cs, _, _, _) -> cs
     bindings: (_, bs, _, _) -> bs
