@@ -1,0 +1,108 @@
+module typecheckEnd
+
+imports
+    include/TypedLambda
+    semantic/typecheckBase
+
+// TODO:
+// - hide boilerplate in constraint generation
+// - integrate nice error messages in constraint generation
+// - get rid of the unions
+
+rules
+    main = io-wrap(readable-types)
+
+    readable-types = types; map(type-to-string)
+    readable-type = type; type-to-string
+
+    types: Module(x, e*) -> <map(type)> e*
+    
+    type: e -> <app_mgu> (t, mgu)
+        where (t, _, _, mgu) := <typeinfer> e
+
+    typeinfer: Module(x, e*) -> t*
+        where t* := <map(typeinfer)> e*
+    typeinfer: e -> <if equal(|<length> b, 0)
+                        then if equal(|<length> errs, 0)
+                                then !(t, c, b, mgu)
+                                else !errs
+                                    end
+                        else !["Unbound variable"|errs] end>
+        where (t, c, b)   := <bottomup(try(generateConstraints))> e;
+              (mgu, errs) := <solveConstraints> c
+    typeinfer = debug(!"typeinfer: "); fail
+
+    gen = bottomup(try(generateConstraints))
+
+    generateConstraints: True() -> (Bool(), [], [])
+    generateConstraints: False() -> (Bool(), [], [])
+    generateConstraints: Num(_) -> (TNum(), [], [])
+    generateConstraints: Not((t, c, b)) -> (Bool(), [CEqErr(t, Bool(), "Not: arg type not Bool")|c], b)
+    generateConstraints: And((t1, c1, b1), (t2, c2, b2)) -> (Bool(), c', b)
+        where (b, c') := <merge> (b1, b2, <unions> [c1, c2, [CEqErr(Bool(), t1, "And: First arg type not Bool"), CEqErr(Bool(), t2, "And: Second arg type not Bool")]])
+    generateConstraints: Add((t1, c1, b1), (t2, c2, b2)) -> (TNum(), c', b)
+        where (b, c') := <merge> (b1, b2, <unions> [c1, c2, [CEqErr(TNum(), t1, "Add fst arg"), CEqErr(TNum(), t2, "Add snd arg")]]) 
+    generateConstraints: Gt((t1, c1, b1), (t2, c2, b2)) -> (Bool(), c', b)
+        where (b, c') := <merge> (b1, b2, <unions> [c1, c2, [CEqErr(TNum(), t1, "Gt fst arg"), CEqErr(TNum(), t2, "Gt snd arg")]]) 
+    generateConstraints: Cond((tCond, cCond, bCond),
+                              (tThen, cThen, bThen),
+                              (tElse, cElse, bElse)) -> (tThen, c', b)
+        where (b, c') := <merge> (bCond, bThen, bElse, <unions> [cCond, cThen, cElse
+                                                                ,[CEqErr(Bool(), tCond, "Cond type"), CEqErr(tThen, tElse, "branch types does not match")]])
+    generateConstraints: Var(x) -> (ty, [], [(x, ty)])
+        where ty := TVar(<newname> "T")
+    generateConstraints: App((t1, c1, b1), (t2, c2, b2)) -> (t, c', b)
+        where t  := TVar(<newname> "T");
+              (b, c') := <merge> (b1, b2, <unions> [c1, c2, [CEqErr(t1, Function(t2, t), "Can only apply to functions")]])
+    generateConstraints: Abs(x, t, (t', c, b)) -> (Function(t, t'), <union> (c, <isectConstraints> ([(x, t)], b)), <filter(not(?(x, _)))> b)
+    generateConstraints: Fix(x, t, (t', c, b)) -> (t, <union> (c, <isectConstraints> ([(x, t)], b)), <filter(not(?(x, _)))> b)
+    generateConstraints: Let(x, t, (t1, c1, b1), (t2, c2, b2)) -> (t2, c', b')
+        where (b', c') := <merge'> (b1, b2, (x, t), <unions> [c1, c2, [CEqErr(t, t1, "Actual type does not match denoted type")]])
+
+    // (type, constraints) -> mgu
+    solveConstraints: c -> (mgu, errs)
+       where (_, mgu, errs) := <unify> (c, [], [])
+    solveConstraints = debug(!"solveConstraints: "); fail
+
+    // robinson: trivial, decompose, clash, orient, occur, varibale elimination
+    //unify: (cs, mgu) -> (cs', mgu')
+    unify: ([CEqErr(t, t, _)|cs], mgu, err) -> <unify> (cs, mgu, err) //trivial
+
+    unify: ([CEqErr(Function(t1, t1'), Function(t2, t2'), err)|cs], mgu, errs) -> <unify> (cs', mgu, errs) // decompose 
+        where cs' := <concat> [[CEqErr(t1, t2, err), CEqErr(t1', t2', err)], cs]
+
+    // is there a way to check for equality of constructors before match?
+    unify: ([CEqErr(Bool(), Function(_, _), err)|cs], mgu, errs) -> <unify> (cs, mgu, [err|errs]) // clash
+    unify: ([CEqErr(Function(_, _), Bool(), err)|cs], mgu, errs) -> <unify> (cs, mgu, [err|errs])
+    unify: ([CEqErr(TNum(), Bool(), err)|cs], mgu, errs)  -> <unify> (cs, mgu, [err|errs])
+    unify: ([CEqErr(Bool(), TNum(), err)|cs], mgu, errs)  -> <unify> (cs, mgu, [err|errs])
+    unify: ([CEqErr(Function(_, _), TNum(), err)|cs], mgu, errs)  -> <unify> (cs, mgu, [err|errs])
+    unify: ([CEqErr(TNum(), Function(_, _), err)|cs], mgu, errs)  -> <unify> (cs, mgu, [err|errs])
+
+    unify: ([CEqErr(t, TVar(x), err)|cs], mgu, errs) -> <unify> (<union> (cs, [CEqErr(TVar(x), t, err)]), mgu, errs) // orient
+
+    unify: ([CEqErr(TVar(x), t, err)|cs], mgu, errs) -> <if <occurs> (x, t)
+                                                            then <unify> (cs, mgu, [err|errs]) // x occurs in t
+                                                            else <unify> (cs', mgu', errs) end> // variable elimination
+        where cs'  := <map(\ CEqErr(t1, t2, err) -> CEqErr(<tSubst> (x, t1, t), <tSubst> (x, t2, t), err) \)> cs; //map subst over cs
+              mgu1 := <map(\ (y, t1) -> (y, <tSubst> (x, t1, t)) \)> mgu; //map subst over mgu
+              mgu' := [(x, t)|mgu1]
+
+    unify: ([], mgu, err) -> ([], mgu, err)
+    unify = debug(!"unify"); fail
+
+    // union of bindings and intersection of constraints in bindings
+    // (bs, bs) -> (cs, bs)
+    merge: (bs1, bs2, bs3, cs) -> (bs', cs')
+        where bs' := <bUnion> (bs1, <bUnion> (bs2, bs3));
+              cs' := <union> (cs, <isectConstraints> (bs1, bs2, bs3))
+    merge: (bs1, bs2, cs) -> (bs', cs')
+        where bs' := <bUnion> (bs1, bs2);
+              cs' := <union> (cs, <isectConstraints> (bs1, bs2))
+    merge': (bs1, bs2, b, cs) -> (bs', cs')
+        where bs  := <bUnion> (bs1, bs2);
+              bs' := <filter(not(?(x, _)))> bs; // FIXME
+              cs' := <union> (cs, <isectConstraints> ([b|bs1], bs2))
+              
+    merge  = debug(!"merge: "); fail
+    merge' = debug(!"merge: "); fail

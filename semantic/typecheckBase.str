@@ -1,0 +1,87 @@
+module typecheckBase
+
+imports
+    include/TypedLambda
+
+signature constructors
+    CEqErr : Type * Type * String -> Constraint
+    TVar     : STRING -> Type
+    
+rules
+    // applies an mgu to a type
+    // (t, mgu) -> t
+    app_mgu: (t, []) -> t
+    app_mgu: (t, [(x, t')|mgu]) -> <app_mgu> (t1, mgu)
+        where t1 := <tSubst> (x, t, t')
+    app_mgu = debug(!"app_mgu: "); fail
+
+    // substitute x in t with t'
+    tSubst: (x, Bool(), t')           -> Bool()
+    tSubst: (x, TNum(), t')           -> TNum()
+    tSubst: (x, Function(t1, t2), t') -> Function(t1', t2')
+        where t1' := <tSubst> (x, t1, t');
+              t2' := <tSubst> (x, t2, t')
+    tSubst: (x, TVar(x), t')          -> t'
+    tSubst: (x, TVar(y), t')          -> TVar(y)
+    tSubst = debug(!"tSubst: "); fail
+
+    // if var occurs in term true, else false 
+    occurs: (var, Bool())          -> <fail>
+    occurs: (var, TNum())          -> <fail>
+    occurs: (var, TVar(var))       -> <id>
+    occurs: (var, TVar(_))         -> <fail>
+    occurs: (var, Function(t, t')) -> <if <occurs> (var, t)
+                                        then id
+                                        else <occurs> (var, t') end>
+    // occurs = debug(!"occurs: ")
+
+    //[B("x", "T1"), B("x", "T1123"), B("y", "T2"), B("y", "T1234")] -> [B("x", "T1"), B("y", "T2")]
+    bUnion: (xs, ys) -> <bUnion> (<conc> (xs, ys))  
+    bUnion: [] -> []
+    bUnion: [(x, t)|bs] -> [(x, t)|<bUnion> bs']
+        where bs' := <filter(not(?(x, _)))> bs
+    bUnion = debug(!"bUnion: "); fail
+    
+    // forall x in list. (elem, x)
+    mk-tuples: (elem, list) -> <map(\ x -> (elem, x) \)> list
+    
+    // list of bindings -> list of tuples of bindings
+    mk-isectCallList: [] -> []
+    mk-isectCallList: [x|xs] -> <conc> (<mk-tuples> (x, xs), <mk-isectCallList> xs)
+    
+    // list of bindings, list of bindings -> list of constraints
+    isectConstraints: ([], ys) -> []
+    isectConstraints: ([(x, t)|xs], ys) -> <union> (c, <isectConstraints> (xs, ys))
+        where c := <filter(?(x, _) ; \ (_, t') -> <mk-error-constraint> (t, t', <conc-strings> ("variable binding of ", x)) \)> ys
+    isectConstraints: (xs, ys, zs) -> <concat> [<isectConstraints> (xs, ys),  // TODO: remove this
+                                                <isectConstraints> (ys, zs),
+                                                <isectConstraints> (xs, zs)]
+    isectConstraints = debug(!"isectConstraints: "); fail
+    
+    constraints: (cs, _, _, _) -> cs
+    bindings: (_, bs, _, _) -> bs
+    mgu: (_, _, mgu, _) -> mgu
+    errs: (_, _, _, errs) -> errs
+    filter-bindings = map(bindings)
+    filter-constraints = map(constraints)
+    filter-mgu = map(mgu)
+    filter-errs = map(errs)
+    
+    // expected, actual, node -> constraint with error message
+    // type, type, string -> CEqErr
+    mk-error-constraint: (expected, actual, node) -> CEqErr(expected, actual, err)
+        where err := <concat-strings> ["Expected ",
+                                       <type-to-string> expected,
+                                       " but got ",
+                                       <type-to-string> actual,
+                                       " in ", node]
+    
+    type-to-string: Bool() -> "Bool"
+    type-to-string: TNum() -> "Num"
+    type-to-string: Function(t1, t2) -> <concat-strings> ["(", <type-to-string> t1, " -> ", <type-to-string> t2, ")"]
+    type-to-string: TVar(t) -> t
+    
+    // bindings -> error message
+    // list of tuples -> string
+    mk-unbound-vars-message: bindings -> <conc-strings>  ("Unbound variables",
+                                                          <foldl(\ (x, xs) -> <concat-strings> [xs, " ", <Fst> x] \)> (bindings, ""))

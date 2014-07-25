@@ -3,11 +3,11 @@ module typecheck
 imports
     include/TypedLambda
 
-signature constructors
-    CEq : Type * Type -> Constraint
-    TVar     : STRING -> Type
-    
-rules
+// signature constructors
+//     CEq : Type * Type -> Constraint
+//     TVar     : STRING -> Type
+//     
+// rules
 //     main = io-wrap(types)
 // 
 //     // applies an mgu to a type

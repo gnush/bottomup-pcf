@@ -5,8 +5,11 @@ imports
 	include/TypedLambda
 	semantic/normalization
 	semantic/topdown
-	semantic/typecheck
-	semantic/typecheckErr
+	// semantic/typecheck
+	// semantic/typecheckErr
+	semantic/typecheckBase
+	semantic/typecheckIntermediate
+	semantic/typecheckEnd
 
 rules 
 
