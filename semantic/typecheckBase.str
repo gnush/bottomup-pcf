@@ -58,7 +58,9 @@ rules
                                                 <isectConstraints> (xs, zs)]
     isectConstraints = debug(!"isectConstraints: "); fail
     
+    constraints: (cs, _)       -> cs
     constraints: (cs, _, _, _) -> cs
+    bindings: (_, bs)       -> bs
     bindings: (_, bs, _, _) -> bs
     mgu: (_, _, mgu, _) -> mgu
     errs: (_, _, _, errs) -> errs
